@@ -117,3 +117,13 @@ and relaxation mechanisms still require separate validation.
 - Frequency-domain 2D generators use absolute gaps, have inconsistent pulse
   preparation relative to the time-domain routines, and truncate at max_count.
   The new tool uses time-domain sequence definitions and signed Fourier axes.
+
+
+For workload comparisons, run the same explicit model and sequence sequentially
+with `(backend, symmetry)` equal to `(cpu, false)`, `(cpu, true)`, `(gpu, false)`
+and `(gpu, true)`. Keep a full-space CPU reference and compare complex FID arrays
+and selected nonzero-frequency spectral strips, not only a DC-dominated global
+norm. Record both `elapsed_compute_s` and `execution_wall_seconds`. Fresh worker
+CUDA initialization differs from warmed repeated throughput, and one run does
+not establish a timing distribution. Do not select a backend from matrix size
+or theoretical operation counts alone.

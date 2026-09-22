@@ -173,3 +173,23 @@ See `examples/j_fit.json`. Replace its comparison run ID with a completed local
 `compare_preprocessing` run. The first local trial uses SG window 301/order 2,
 50 ms recorded-time start, and 110-150 / 230-275 Hz bands. This choice is explicit
 and exploratory, not an assertion that it is the optimal preprocessing.
+
+
+## Independent preparation counterexample
+
+Run `python -m examples.validate_preparation` to compare the unpulsed thermal
+weights with a hypothetical finite z-field pulse while keeping J and the true
+0.8 s decay unchanged. The example constructs the full 256-dimensional spin
+space, propagates the density matrix, and verifies its complex transition sum
+against direct matrix exponentials. The unpulsed response is also checked
+against the reduced collective-spin response. The nonzero-frequency response is
+used for both decay comparisons; its separately recorded DC component is
+explicitly excluded to isolate preparation effects.
+
+The hypothetical 10 microtesla, 5 ms pulse is not experimental metadata. In this
+counterexample, fitting unpulsed weights with free group phase, decay and bounded
+global delay leaves structured complex residual. A matched-preparation model
+recovers the known decay. Unknown preparation therefore remains a possible
+source of mismatch; changing J, linewidth or arbitrary per-transition phases
+must not be treated as a validated remedy. The production fixed-J decay tool
+continues to document its unpulsed thermal-weight approximation.
