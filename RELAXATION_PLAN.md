@@ -76,3 +76,14 @@ group indices separate discovery and validation; split stored locally in
 `.analysis/relaxation_goal_progress.json`. Early FID plot shows a very large
 transient/baseline relative to the spectral signal; explicit crop/filter
 sensitivity is essential before decay interpretation.
+
+Milestone 2 (numerical core, not yet the complete user-facing operation):
+`zulf_tools/decay.py` evaluates only the requested native complex FFT bins,
+using exact finite-record real oscillators with matched SG/crop response from
+`ProcessedSpectrum`. It provides bounded frequencies/T2*, shared or independent
+decays, variable-projection amplitude/phase, multistart search, actual objective
+evaluation/time budgets and explicit boundary/convergence diagnostics.
+`tests/test_decay.py` passes five independent time-signal tests: SG mirror-edge
+response, phase/single-decay recovery, equal-decay beating, noisy two-decay
+recovery, and budget/bound reporting. API integration, discovery/validation,
+demodulation, sliding windows, uncertainty and real-data evaluation remain open.
