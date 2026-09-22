@@ -656,6 +656,11 @@ These distinguish discovery-spectrum seeds from explicit frequencies and retain
 each attempted start's clipped frequencies, T2* values, search strategy, actual
 evaluation count and termination reason. `best_start_index` and `best_evaluation`
 identify the retained best trial, including finite-difference evaluations.
+The convergence flag requires a successful endpoint from that same start,
+with matching score, frequencies and decay times. A different start's similar
+objective value cannot supply convergence for the retained trial. Parameter
+agreement uses relative tolerance 1e-5 and absolute tolerance 1e-8; these are
+numerical checks, not parameter uncertainties or proof of a global optimum.
 `completed_starts` still counts optimizer endpoints, whether converged or not;
 `attempted_starts` also includes a budget-interrupted attempt. Unattempted starts
 are not invented. This ledger is written with a returned fit; it is not a live

@@ -223,6 +223,7 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
         attempts.append(attempt)
         frequencies, taus = decode(solution.x)
         history.append({'score':float(np.mean(solution.fun**2)),
+                        'start_index':start,
                         'frequencies_hz':frequencies.tolist(),'t2star_s':taus.tolist(),
                         'success':bool(solution.success),'nfev':int(solution.nfev),
                         'message':str(solution.message)})
@@ -231,7 +232,11 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
     coefficients = best['coefficients'][:2*mode_count].reshape(-1,2)[order]
     # best may be a finite-difference trial rather than a converged endpoint;
     # require close numerical agreement with a successful recorded endpoint.
-    converged = any(h['success'] and abs(h['score']-best['score']) <= max(1e-12,best['score']*1e-5) for h in history)
+    converged = any(h['start_index']==best['start_index'] and h['success']
+                    and abs(h['score']-best['score']) <= max(1e-12,best['score']*1e-5)
+                    and np.allclose(h['frequencies_hz'],frequencies,rtol=1e-5,atol=1e-8)
+                    and np.allclose(h['t2star_s'],taus,rtol=1e-5,atol=1e-8)
+                    for h in history)
     diagnostics = fit_diagnostics(frequencies[order], taus[order], frequency_bounds, t2_bounds,
                                   shared_decay=shared_decay, native_spacing=processor.fs/processor.n,
                                   rank=best['rank'], columns=2*mode_count+2*int(background),

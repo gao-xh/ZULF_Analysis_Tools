@@ -1,4 +1,6 @@
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 import numpy as np
 from scipy.signal import savgol_filter
 from zulf_tools.jfit import ProcessedSpectrum
@@ -6,6 +8,22 @@ from zulf_tools.decay import fit_modes, mode_design, real_projection, fit_diagno
 
 
 class DecayTests(unittest.TestCase):
+    def test_best_trial_cannot_borrow_another_starts_convergence(self):
+        p,y=self.fixture([(40.,.8,1.,.2)])
+        calls=[]
+        def endpoint(fun,x,**kwargs):
+            start=len(calls);calls.append(start)
+            trial=np.array([40.,np.log(.8000001 if start==0 else .8)])
+            residual=fun(trial)
+            return SimpleNamespace(x=trial,fun=residual,success=start==0,nfev=1,message='Controlled endpoint')
+        with patch('zulf_tools.decay.least_squares',side_effect=endpoint):
+            r=fit_modes(p,y,[35,45],[.1,2.],starts=2)
+        self.assertEqual(r['best_start_index'],1)
+        self.assertLess(abs(r['candidates'][0]['score']-r['score']),1e-12)
+        self.assertFalse(r['optimizer_converged'])
+        self.assertIn('optimizer_not_converged',r['numerical_diagnostics']['numerical_warning_flags'])
+        self.assertEqual([c['start_index'] for c in r['candidates']],[0,1])
+
     def fixture(self, modes, sg=0, first=64, last=3600):
         fs=512.; n=4096; t=np.arange(n)/fs
         y=sum(a*np.exp(-t/tau)*np.cos(2*np.pi*f*t+phase) for f,tau,a,phase in modes)
