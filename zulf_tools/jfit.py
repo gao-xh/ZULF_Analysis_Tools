@@ -144,14 +144,21 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     start_time = time.perf_counter()
     s = dict(initial=DEFAULT.copy(),bounds=BOUNDS.copy(),free_parameters=NAMES.copy(),
              starts=8,max_nfev=80,screening_samples=128,seed=20260922,bin_stride=2,
-             rate_bounds=[.3,40.],initial_rate=4.,objective='complex')
+             rate_bounds=[.3,40.],initial_rate=4.,objective='complex',
+             isotopomers=['methine','methyl'],fixed_rates={})
     settings = settings or {}
     if set(settings)-set(s): raise ValueError('Unknown fitting settings.')
     s.update(settings)
     if s['objective'] not in ('complex','magnitude'): raise ValueError('objective must be complex or magnitude.')
+    active=s['isotopomers']; fixed_rates=s['fixed_rates']
+    if not isinstance(active,list) or not active or len(set(active))!=len(active) or any(k not in ('methine','methyl') for k in active): raise ValueError('Invalid isotopomers.')
+    if not isinstance(fixed_rates,dict) or any(k not in active or not np.isfinite(v) or v<=0 for k,v in fixed_rates.items()): raise ValueError('Invalid fixed_rates.')
+    rate_names=[k for k in ('methine','methyl') if k in active and k not in fixed_rates]
     initial = dict(DEFAULT,**s['initial']); bounds = dict(BOUNDS,**s['bounds'])
     free = s['free_parameters']
     if not free or len(set(free)) != len(free) or any(k not in NAMES for k in free): raise ValueError('Invalid free J parameter list.')
+    dependencies={'methine':set([NAMES[0],NAMES[2],NAMES[3]]),'methyl':set([NAMES[1],NAMES[2],NAMES[4],NAMES[5]])}
+    if set(free)-set.union(*(dependencies[k] for k in active)): raise ValueError('Free J parameters must affect an active isotopomer.')
     if set(initial)!=set(NAMES) or set(bounds)!=set(NAMES) or not np.isfinite(list(initial.values())).all(): raise ValueError('Invalid J settings.')
     for key in NAMES:
         b = bounds[key]
@@ -181,9 +188,10 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     # Equalize each band's energy so a weak second multiplet remains informative.
     band_scale=np.array([max(np.sqrt(np.mean(abs(y[membership==i])**2)),1e-15) for i in range(len(ranges))])
     scale=band_scale[membership]
-    lower=np.array([bounds[k][0] for k in free]+[np.log(rb[0])]*2)
-    upper=np.array([bounds[k][1] for k in free]+[np.log(rb[1])]*2)
-    x0=np.array([initial[k] for k in free]+[np.log(s['initial_rate'])]*2)
+    lower=np.array([bounds[k][0] for k in free]+[np.log(rb[0])]*len(rate_names))
+    upper=np.array([bounds[k][1] for k in free]+[np.log(rb[1])]*len(rate_names))
+    x0=np.array([initial[k] for k in free]+[np.log(s['initial_rate'])]*len(rate_names))
+    def rates_for(x): return dict(fixed_rates,**dict(zip(rate_names,np.exp(x[len(free):]).tolist())))
     evaluations=0; best_score=float('inf'); history=[]
     def predict(x,detail=False):
         nonlocal evaluations,best_score
@@ -191,8 +199,11 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
         p=dict(initial,**dict(zip(free,x[:len(free)])))
         cols=[]
         for i,name in enumerate(('methine','methyl')):
+            if name not in active:
+                cols.extend([np.zeros(len(f),complex)]*2)
+                continue
             freq,weight=transitions(p,name)
-            cols.extend(processor.templates(freq,weight,np.exp(x[len(free)+i])).T)
+            cols.extend(processor.templates(freq,weight,rates_for(x)[name]).T)
         # Independent real cosine/sine gains, summed before magnitude. Isotopic
         # number weights are absorbed by unknown response amplitudes, not inferred.
         for i in range(len(ranges)):
@@ -220,7 +231,7 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
         if score<best_score:
             best_score=score
             storage.write_json(directory/'best_so_far.json',{'status':'provisional','evaluations':evaluations,
-                'score':score,'parameters_hz':p,'decay_rates_per_s':np.exp(x[len(free):]).tolist()})
+                'score':score,'parameters_hz':p,'decay_rates_per_s':rates_for(x)})
         if evaluations%25==0:
             storage.write_json(directory/'search_progress.json',{'evaluations':evaluations,'best_score':best_score})
         return (residual,fitted,coef,design,p) if detail else residual
@@ -242,8 +253,11 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
         fit=least_squares(predict,np.clip(x,lower+1e-9,upper-1e-9),bounds=(lower,upper),
             x_scale='jac',diff_step=1e-4,max_nfev=s['max_nfev'],ftol=1e-7,xtol=1e-7,gtol=1e-7)
         score=float(np.mean(fit.fun**2)); solutions.append((score,fit))
+        _,candidate_fitted,candidate_coef,_,_=predict(fit.x,True)
         history.append({'score':score,'parameters_hz':dict(initial,**dict(zip(free,fit.x[:len(free)]))),
-                        'decay_rates_per_s':np.exp(fit.x[len(free):]).tolist(),
+                        'decay_rates_per_s':rates_for(fit.x),
+                        'linear_coefficients':candidate_coef.tolist(),
+                        'band_magnitude_relative_residuals':[float(np.linalg.norm((abs(y)-abs(candidate_fitted))[membership==b])/np.linalg.norm(y[membership==b])) for b in range(len(ranges))],
                         'optimizer_success':bool(fit.success),'message':fit.message,'nfev':fit.nfev})
         storage.write_json(directory/'candidates.json',sorted(history,key=lambda r:r['score']))
         progress(2000+round(8000*(i+1)/len(starts)),10000)
@@ -263,18 +277,23 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
              'Frequency (Hz)','Magnitude (ADC units)',f'Candidate J fit: {lo:g}-{hi:g} Hz')
         plot(directory/f'residual_range_{i}.png',[(f[mask],(y-fitted)[mask].real,'Real'),(f[mask],(y-fitted)[mask].imag,'Imaginary')],
              'Frequency (Hz)','Complex residual (ADC units)',f'Residual: {lo:g}-{hi:g} Hz')
+        plot(directory/f'components_range_{i}.png',[(f[mask],abs(y[mask]),'Experiment'),
+             (f[mask],abs((design[:,:2]@coef[:2])[mask]),'13CH'),
+             (f[mask],abs((design[:,2:4]@coef[2:4])[mask]),'13CH3')],
+             'Frequency (Hz)','Component magnitude (not additive)',f'Isotopomer check: {lo:g}-{hi:g} Hz')
     np.savez_compressed(directory/'fit_arrays.npz',frequency_hz=f,experiment=y,fitted=fitted,residual=y-fitted,
                         methine=design[:,:2]@coef[:2],methyl=design[:,2:4]@coef[2:4],membership=membership)
     for name in ('methine','methyl'): storage.write_json(directory/f'{name}_model.json',model_for(p,name))
-    storage.write_json(directory/'parameter_sensitivity.json',{'parameters':free+['log_rate_methine','log_rate_methyl'],
+    storage.write_json(directory/'parameter_sensitivity.json',{'parameters':free+['log_rate_'+k for k in rate_names],
         'jacobian_norms':norms.tolist(),'jacobian_column_cosines':correlation.tolist(),'scaled_singular_values':sv.tolist()})
     report={'parent_run_id':comparison_run_id,'source_variant':variant_index,'source_sha256':variant['sha256'],
             'preprocessing':params,'settings':s,'ranges_hz':ranges,'free_parameters':free,
             'parameters_hz':p,'fixed_parameters_hz':{k:p[k] for k in NAMES if k not in free},
-            'decay_rates_per_s':dict(zip(['methine','methyl'],np.exp(best.x[len(free):]).tolist())),
+            'decay_rates_per_s':rates_for(best.x),'active_isotopomers':active,
             'linear_coefficients':coef.tolist(),'weighted_mean_square_residual':score,
             'relative_complex_residual':float(np.linalg.norm(y-fitted)/np.linalg.norm(y)),
             'relative_magnitude_residual':float(np.linalg.norm(abs(y)-abs(fitted))/np.linalg.norm(abs(y))),
+            'band_magnitude_relative_residuals':[float(np.linalg.norm((abs(y)-abs(fitted))[membership==i])/np.linalg.norm(y[membership==i])) for i in range(len(ranges))],
             'parameters_near_bounds':boundary,'optimizer_success':bool(best.success),
             'optimizer_message':best.message,'candidates':sorted(history,key=lambda r:r['score']),
             'actual_starts':len(starts),'within_10_percent_score_parameter_ranges_hz':spread,

@@ -151,7 +151,8 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-14 tools with this extension. See [J_FITTING.md](J_FITTING.md) for the explicit
+15 tools including `fit_isopropylamine_staged`, which anchors the methyl high band
+before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
 ## Next analysis milestones

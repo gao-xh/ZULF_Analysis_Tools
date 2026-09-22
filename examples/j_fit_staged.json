@@ -1,0 +1,23 @@
+{
+  "tool": "start_analysis",
+  "arguments": {
+    "operation": "fit_isopropylamine_staged",
+    "parameters": {
+      "comparison_run_id": "REPLACE_WITH_LOCAL_COMPARISON_RUN_ID",
+      "variant_index": 0,
+      "low_range": [110, 150],
+      "high_range": [230, 275],
+      "settings": {
+        "objective": "magnitude",
+        "branches": 2,
+        "anchor_starts": 5,
+        "anchor_screening": 64,
+        "methine_starts": 3,
+        "methine_screening": 24,
+        "max_nfev": 80,
+        "bin_stride": 3,
+        "high_degradation_tolerance": 0.15
+      }
+    }
+  }
+}

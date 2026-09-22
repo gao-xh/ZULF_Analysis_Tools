@@ -5,6 +5,48 @@ simulation tool format. `fit_isopropylamine_j` searches their parameters against
 a saved experimental preprocessing run. MCP fitting returns a background job ID.
 The original experiments and legacy simulation source are never modified.
 
+## Lesson: prevent competing isotopomer assignments
+
+An unconstrained simultaneous fit can assign a peak cluster to the wrong
+isotopomer and compensate with remote couplings, linewidths, phases or background.
+It may lower the total objective while missing a dominant peak in one component.
+Optimizer convergence establishes neither correct isotope assignment nor correct J.
+Do not present the lowest-loss matrix as an experimental determination without
+component checks. The observed failure in the isopropylamine trial motivated
+the workflow below; it did not prove a Hamiltonian indexing error.
+
+`fit_isopropylamine_staged` implements:
+
+1. Fit only the methyl-13C isotopomer in the high band (default 230-275 Hz),
+   optimizing its direct/remote C-H and shared vicinal H-H couplings. This band
+   is **assumed methyl-dominated**, a hypothesis to validate, not an assignment
+   established by the algorithm. Keep multiple distinct candidate starts.
+2. Predict the low band (default 110-150 Hz) using the unchanged high-band J,
+   rate and cosine/sine coefficients. Save this extrapolation before low-band
+   fitting; do not silently rescale it to the low band.
+3. Fit methine-13C parameters with methyl J, shared H-H and methyl damping fixed
+   at the branch's anchor values. Use both bands; re-estimate nuisance gains and
+   phases. Do not subtract magnitude spectra to manufacture a methine spectrum.
+4. Refine all J jointly from each staged branch. Compare high-band residual to
+   that branch's original anchor. Flag deterioration above the explicitly recorded
+   tolerance (default 15% relative increase in high-band magnitude residual).
+   This is an operational guard, not a statistical significance threshold.
+5. Report child runs, independent component plots, per-band errors and alternative
+   branches. A candidate for review must preserve the high-band fit and have
+   converged anchor/joint optimizers. It is **never scientifically auto-validated**.
+
+The high band's inability to distinguish some couplings propagates into later
+stages: keeping two branches is not a confidence interval or exhaustive coverage.
+A poor anchor must not be treated as established truth. Shared H-H parameters
+are fixed only conditionally during stage 3 and released in final refinement.
+Unknown frequency-dependent detection can also invalidate the extrapolated gain.
+
+The ordinary fit tool additionally accepts `isotopomers` (nonempty subset of
+`["methine", "methyl"]`) and `fixed_rates` (isotopomer to inverse seconds). Free J
+parameters must affect an active isotopomer. Every ordinary fit now saves separate
+component overlays and per-band magnitude residuals, including for complex fits.
+Candidate records retain gains/rates for reproducible extrapolation.
+
 ## Scope and parameter mapping
 
 This is a pure, natural-abundance isopropylamine **carbon-bound proton skeleton**

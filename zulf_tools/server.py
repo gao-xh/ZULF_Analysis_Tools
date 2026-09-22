@@ -105,12 +105,30 @@ def fit_isopropylamine_j(comparison_run_id: str, variant_index: int,
     free_parameters (names), starts, max_nfev, screening_samples, seed, bin_stride,
     rate_bounds [lo,hi] in 1/s, initial_rate, objective complex/magnitude (default
     complex). Magnitude compares abs of coherently summed complex predictions,
-    fitting nuisance gains/phases internally. Returns job_id. Saves candidates,
+    fitting nuisance gains/phases internally. Also accepts isotopomers (nonempty
+    subset of methine/methyl) and fixed_rates (isotopomer->1/s). Returns job_id. Saves candidates,
     J matrices, sensitivity, overlays and residuals. Does NOT uniquely identify
     the full molecule's J values, perform repeat validation or infer confidence intervals.
     """
     return jobs.start_analysis('fit_isopropylamine_j', {'comparison_run_id': comparison_run_id,
         'variant_index': variant_index, 'ranges': ranges, 'settings': settings})
+
+
+@mcp.tool()
+def fit_isopropylamine_staged(comparison_run_id: str, variant_index: int,
+                             low_range: list[float] | None = None,
+                             high_range: list[float] | None = None, settings: dict | None = None) -> dict:
+    """Start methyl-high-band anchor, unchanged low-band extrapolation, methine
+    fit with methyl J/rate fixed, then joint refinement of retained branches.
+    Default low/high bands: [110,150]/[230,275] Hz. Settings: initial, bounds,
+    objective complex/magnitude, branches (1..4), anchor_starts, anchor_screening,
+    methine_starts, methine_screening, max_nfev, bin_stride, seed,
+    high_degradation_tolerance (default .15). All child run IDs are preserved.
+    High-band assignment is an assumption; no candidate is scientifically validated
+    automatically. Component magnitudes are never subtracted to form a residual.
+    """
+    return jobs.start_analysis('fit_isopropylamine_staged',{'comparison_run_id':comparison_run_id,
+        'variant_index':variant_index,'low_range':low_range,'high_range':high_range,'settings':settings})
 
 
 @mcp.tool()

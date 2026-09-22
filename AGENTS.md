@@ -23,4 +23,9 @@ Do not build a new desktop GUI as the primary workflow.
 - Test numerical operations against independent synthetic signals and verify
   the MCP transport. Do not upload experiments or generated reports to GitHub.
 - Maintain before/after GitHub backups for subsequent substantive modifications.
-
+- For overlapping isotopomer J fits, follow the component-assignment lesson in
+  `J_FITTING.md`: anchor a selectively informative band first, check its unchanged
+  prediction elsewhere, then fit the overlapping component and refine jointly.
+  Always inspect separate component plots and band residuals. A smaller aggregate
+  residual or optimizer convergence does not validate isotope assignments or J.
+  Do not subtract magnitude spectra or treat assumed band assignments as facts.

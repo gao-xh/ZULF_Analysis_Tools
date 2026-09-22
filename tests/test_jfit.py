@@ -61,6 +61,24 @@ class JFitTests(unittest.TestCase):
             for key in args['settings']['free_parameters']:
                 self.assertAlmostEqual(magnitude['parameters_hz'][key],truth[key],places=2)
             self.assertEqual(len(magnitude['candidates']),1)
+            # Methyl-only anchor must not contain a hidden methine component.
+            anchor_args=dict(args,settings=dict(args['settings'],objective='complex',
+                 isotopomers=['methyl'],free_parameters=['J_CH_methyl'],fixed_rates={'methyl':3.},max_nfev=8),ranges=[[230,270]])
+            anchor=execute('fit_isopropylamine_j',anchor_args)
+            self.assertEqual(anchor['decay_rates_per_s'],{'methyl':3.})
+            with np.load(storage.artifact(anchor['run_id'],'fit_arrays.npz')) as a:
+                np.testing.assert_array_equal(a['methine'],np.zeros_like(a['methine']))
+            # Full orchestration, child provenance, fixed methyl parameters, and
+            # no automatic claim of scientific validation.
+            staged=execute('fit_isopropylamine_staged',{'comparison_run_id':comparison['run_id'],
+                'variant_index':0,'low_range':[110,150],'high_range':[230,270],
+                'settings':{'initial':truth,'objective':'complex','branches':1,'anchor_starts':1,
+                    'anchor_screening':0,'methine_starts':1,'methine_screening':0,'max_nfev':5,'bin_stride':4}})
+            self.assertEqual(len(staged['children']),3)
+            self.assertFalse(staged['scientifically_validated'])
+            middle=storage.get_result(staged['branches'][0]['methine_run_id'])
+            for key in ['J_CH_methyl','J_HH_vicinal','J_Cmethyl_Hmethine','J_Cmethyl_Hother_methyl']:
+                self.assertEqual(middle['parameters_hz'][key],staged['branches'][0]['anchor_parameters_hz'][key])
             with self.assertRaises(InterruptedError): execute('fit_isopropylamine_j',args,cancel=lambda:True)
             artifact=storage.artifact(comparison['run_id'],'variant_0.npz')
             with artifact.open('ab') as out: out.write(b'changed')

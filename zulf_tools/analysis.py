@@ -210,11 +210,12 @@ def inspect_frequency_ranges(comparison_run_id, ranges, max_candidates=10, *, re
 from .simulation import (inspect_simulation_backend, import_spin_model, analyze_spin_symmetry,
                          simulate_spin_dynamics)
 from .jfit import build_isopropylamine_model, fit_isopropylamine_j
+from .staged_fit import fit_isopropylamine_staged
 
 OPERATIONS = {f.__name__: f for f in (inspect_dataset, compute_average, compare_preprocessing,
               inspect_frequency_ranges, inspect_simulation_backend, import_spin_model,
               analyze_spin_symmetry, simulate_spin_dynamics, build_isopropylamine_model,
-              fit_isopropylamine_j)}
+              fit_isopropylamine_j, fit_isopropylamine_staged)}
 
 
 def execute(operation, parameters, cancel=lambda: False, progress=lambda n, total: None):
