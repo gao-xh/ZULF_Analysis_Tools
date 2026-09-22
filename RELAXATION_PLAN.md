@@ -98,3 +98,13 @@ phase inversion that leaves discovery parameters unchanged but worsens frozen
 prediction error. Pilot experimental evaluation completed (local progress file
 records its run ID); this is not yet a validated relaxation conclusion. Legacy
 short-time FT magnitude-slice fitting was reviewed in `RELAXATION_METHODS.md`.
+
+Milestone 4: matched-window Fourier and demodulation primitives pass four
+independent tests (closed-form damped complex exponential, unpadded windows,
+out-of-band rejection/phase preservation, decay slope after anti-alias filtering).
+The `inspect_decay_time_frequency` MCP/CLI tool transforms frozen predictions
+and observations identically; the 11 tool/transport tests cover its short-record
+no-interior state as well. Both pilot frequency bands were inspected with
+0.25/0.5/1-second windows and 90% overlap. Local pilot run IDs are stored in
+`.analysis/time_frequency_pilot_runs.json`. Window dependence and beating are
+visible; STFT fitting and statistically justified decay acceptance remain open.

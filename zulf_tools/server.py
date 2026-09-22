@@ -56,6 +56,20 @@ def fit_frequency_decay(group_run_id: str, ranges: list[list[float]],
 
 
 @mcp.tool()
+def inspect_decay_time_frequency(fit_run_id: str, candidate_index: int = 0,
+                                 widths_s: list[float] | None = None,
+                                 hop_fraction: float = .1) -> dict:
+    """Start matched-window STFT and anti-aliased demodulation comparisons.
+    Uses a frozen candidate from fit_frequency_decay; no refitting. Defaults to
+    Hann widths 0.25/0.5/1 seconds and hop 10% of width (90% overlap). Retains
+    complex acquisition-referenced phase, complete windows only. Demodulated
+    arrays include FIR boundary masks. Independent plots and raw arrays saved.
+    """
+    return jobs.start_analysis('inspect_decay_time_frequency',dict(fit_run_id=fit_run_id,
+        candidate_index=candidate_index,widths_s=widths_s,hop_fraction=hop_fraction))
+
+
+@mcp.tool()
 def compare_preprocessing(average_run_id: str, variants: list[dict]) -> dict:
     """Start comparison of explicit recipes on an existing average. Recipe keys:
     label, start_s, end_s (exclusive), sg_window (0=off; otherwise odd), sg_order

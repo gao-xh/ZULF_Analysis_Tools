@@ -87,7 +87,15 @@ class ToolsTests(unittest.TestCase):
                            preprocessing={'start_s':.125},settings={'starts':2})
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
-            return analysis.execute('fit_frequency_decay',arguments)['candidates'][0]
+            fit=analysis.execute('fit_frequency_decay',arguments)
+            diagnostic=analysis.execute('inspect_decay_time_frequency',
+                {'fit_run_id':fit['run_id'],'widths_s':[.25,.5]})
+            self.assertEqual(len(diagnostic['window_comparisons']),2)
+            self.assertEqual(diagnostic['demod_valid_interior_samples'],0)
+            self.assertEqual(diagnostic['demodulation_status'],'insufficient_record_for_filter_interior')
+            self.assertIsNone(diagnostic['demod_validation_relative_residual'])
+            self.assertTrue(storage.artifact(diagnostic['run_id'],'time_frequency_arrays.npz').exists())
+            return fit['candidates'][0]
         original=run()
         values=-self.originals[2]
         words=np.r_[np.zeros(20,dtype='<i2'),values[::-1],np.zeros(2,dtype='<i2')].astype('<i2')
@@ -165,7 +173,8 @@ class TransportTests(unittest.TestCase):
                     listed = await session.list_tools()
                     self.assertIn('compute_group_averages',{tool.name for tool in listed.tools})
                     self.assertIn('fit_frequency_decay',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),17)
+                    self.assertIn('inspect_decay_time_frequency',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),18)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

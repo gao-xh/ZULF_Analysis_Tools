@@ -20,6 +20,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `compute_average` | Stream selected raw FIDs into a coherent mean; hash inputs and compare any compiled reference. |
 | `compute_group_averages` | Stream 2..32 explicit disjoint scan groups into means, preserving scan membership and hashes for independent validation. |
 | `fit_frequency_decay` | Fit bounded damped modes on selected complex FFT bands; predict disjoint validation groups with frozen parameters. |
+| `inspect_decay_time_frequency` | Compare a frozen decay candidate through matched Hann windows and anti-aliased complex demodulation. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -153,7 +154,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-17 tools including `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+18 tools including `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -192,5 +193,17 @@ Plots of magnitude, real part, imaginary part and validation residual are separa
 `max_seconds` and `max_evaluations` limit each fit, while `total_seconds` limits
 starting/continuing fits across the operation; output serialization/plotting may
 extend wall time beyond the optimization budget. Other goal requirements such
-as drift correction, confidence intervals, STFT comparisons and automated crop
+as drift correction, confidence intervals and automated crop
 sensitivity remain in development and are not claimed by this operation.
+
+`inspect_decay_time_frequency` consumes a completed decay fit and zero-based
+candidate index. `widths_s` defaults to `[0.25, 0.5, 1]`, and `hop_fraction=0.1`
+matches the legacy 90% overlap. Complete periodic-Hann windows retain complex
+phase referenced to acquisition time; off-grid Fourier evaluation does not
+increase spectral resolution. Data and frozen model undergo identical processing.
+The demodulator mixes to the band center, applies a Kaiser FIR before decimation,
+and exports an explicit mask for zero-extension edge effects. A short record
+may have no unaffected interior; this is reported with a null interior error,
+not silently treated as a successful comparison. Full and early-window plots
+are independent. Overlap correlation and magnitude-noise bias remain relevant;
+this diagnostic is not an independent confidence interval or substance assignment.
