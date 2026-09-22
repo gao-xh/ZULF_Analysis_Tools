@@ -5,6 +5,9 @@ Codex calls typed analysis tools, inspects independent figures, and discusses
 evidence with you. Python performs the computation. No OpenAI API key or separate
 model API is required by this backend.
 
+For the frequency-range relaxation workflow and its decision points, start with
+[the bounded decay guide](RELAXATION_GUIDE.md) and its editable JSON request.
+
 ## Version 0.1 workflow
 
 `inspect_dataset → compute_average → compare_preprocessing → inspect_frequency_ranges`
