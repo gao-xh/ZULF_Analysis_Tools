@@ -149,3 +149,9 @@ frozen predictions separately from conditional parameter estimates. Twelve
 integration/transport tests pass, including phase-reversed validation data: a
 good group refit must not erase the bad frozen prediction. Group spread is
 descriptive and does not establish confidence intervals or stable mode identity.
+Milestone 11: matched complex-window fitting core passes four new tests and
+eleven existing decay/time-frequency tests. It caches a bounded sparse Hann
+operator, preserves real-FID quadratures and acquisition phase, and applies SG,
+crop and mean removal identically. A real-record-size synthetic benchmark is
+saved locally. Tool integration and actual-data fitting remain unfinished;
+overlapping windows must not be counted as independent uncertainty samples.

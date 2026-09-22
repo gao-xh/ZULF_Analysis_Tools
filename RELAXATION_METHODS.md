@@ -98,3 +98,25 @@ component, or a physical mechanism. Repeat validation, preprocessing stability,
 and uncertainty checks remain necessary. A synthetic exact-duplicate example
 verifies that an essentially perfect prediction can still have rank-deficient
 amplitudes. Reversed optimizer mode order verifies sorted boundary indexing.
+## Matched complex-window fitting core
+
+`window_decay.WindowedDecayOperator` caches a sparse complete-Hann transform
+with acquisition-referenced phase. Real cosine/sine templates undergo the same
+full-record mirror SG subtraction, time crop, and retained-mean subtraction as
+the experimental FID. The latter matters for off-grid short-window samples,
+even though a constant vanishes at positive native full-record FFT bins.
+
+`fit_windowed_modes` uses bounded variable projection on complex observations,
+starting from explicit frequencies. It retains negative-frequency contributions
+of real FIDs and window averaging of rapidly decaying signals. The optimizer's
+nominal sample count is not a statistical count of independent observations:
+overlapping windows and nearby Fourier samples are correlated. No confidence
+interval is computed from that count. Finite window width can admit signals
+outside a selected nominal band; matched processing alone cannot fix an
+incomplete oscillatory model.
+
+Four independent tests cover direct Hann sums including mirror SG edges,
+0.12-second decay/phase recovery through a 0.25-second window, same-decay
+two-frequency beating, and invalid/resource-limited requests. Sparse storage
+is capped at two million coefficients. This is the tested numerical core;
+the experimental CLI/MCP fitting operation and method comparison remain pending.

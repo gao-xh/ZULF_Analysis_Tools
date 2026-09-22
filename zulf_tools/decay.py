@@ -96,16 +96,18 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
 
     The budget includes finite-difference and initial evaluations. Best evaluated
     point is retained if stopped. A budget-limited result is never convergence.
-    All observations must already correspond to processor's native FFT bins.
+    Observations must correspond to the processor's exact complex transform.
+    Windowed adapters must supply explicit initial frequencies and must not
+    interpret repeated window observations as independent FFT bins.
     """
     observed = np.asarray(observed, dtype=complex)
     f = np.asarray(processor.f)
     if observed.shape != f.shape or len(f) < 8 or not np.isfinite(observed).all():
-        raise ValueError('Supply finite complex observations for at least eight native bins.')
+        raise ValueError('Supply finite complex observations for at least eight transform samples.')
     if not np.isfinite([*frequency_bounds,*t2_bounds]).all() or not 0 < t2_bounds[0] < t2_bounds[1]:
         raise ValueError('Require finite positive increasing T2* bounds in seconds.')
     lo, hi = frequency_bounds
-    if not 0 < lo < hi < processor.fs/2 or f[0] < lo or f[-1] > hi:
+    if not 0 < lo < hi < processor.fs/2 or np.min(f) < lo or np.max(f) > hi:
         raise ValueError('Frequency bounds must contain selected bins and lie inside Nyquist.')
     for value, low, high in [(mode_count,1,8),(starts,1,32),(max_nfev,2,2000),(max_evaluations,2,100000)]:
         if type(value) is not int or not low <= value <= high:
