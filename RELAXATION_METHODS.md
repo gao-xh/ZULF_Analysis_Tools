@@ -64,3 +64,19 @@ from an independent-bin assumption after filtering. Function budgets count
 finite-difference calls. Budget interruption retains a provisional best fit and
 is not itself convergence. Shared-decay two-frequency fits explicitly represent
 beating without introducing an additional decay component.
+
+## Independent-repeat noise diagnostics
+
+For group means z_g with scan counts n_g, use the count-weighted mean m and
+estimate single-scan complex variance as sum(n_g |z_g-m|^2)/(G-1). Its pooled
+mean standard error is the square root of this variance divided by total scan
+count. This assumes independent equal-variance raw scans; drift inflates this
+empirical scatter and is not silently removed. These diagnostics do not infer
+molecular origin or calibrated multiple-testing significance.
+
+For accumulation checks, form disjoint pools A/B at each size and measure their
+spectral differences in explicitly chosen reference bins. Multiply difference
+RMS by sqrt(N_A N_B)/(N_A+N_B) to estimate the noise of their pooled mean.
+The noise-vs-count slope is measured rather than imposed. Repeated permutations
+and sizes share observations, so slope statistics are descriptive. Coherent
+interference can survive averaging and still obey the expected SNR trend.

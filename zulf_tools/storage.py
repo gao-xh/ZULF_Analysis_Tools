@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -19,8 +20,21 @@ def write_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
-    os.replace(temporary, path)
+    try:
+        temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
+        # Windows readers/antivirus can briefly deny atomic replacement. Retry
+        # only access/sharing failures, bounded in time; preserve the old JSON
+        # throughout. Disk-full and other errors must remain visible immediately.
+        for attempt in range(8):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError:
+                if attempt == 7:
+                    raise
+                time.sleep(min(.02*2**attempt,.25))
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def digest(value):

@@ -5,6 +5,7 @@ from . import storage
 from .repeats import load_group_averages
 from .jfit import ProcessedSpectrum
 from .decay import fit_modes, mode_design, real_projection
+from .repeat_statistics import weighted_repeat_statistics
 
 
 def _indices(value, size, label):
@@ -84,8 +85,7 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
         observed=train_y[bins]; held=validation_y[bins]
         # Empirical repeat scatter, including drift. Not stationary thermal noise.
         if len(train)>1:
-            effective_n=counts[train].sum()**2/np.sum(counts[train]**2)
-            scatter=np.sqrt(np.mean(abs(spectra[train][:,bins]-observed)**2,axis=0)/(effective_n-1))
+            scatter=weighted_repeat_statistics(spectra[train][:,bins],counts[train])['standard_error']
         else:
             scatter=np.full(len(bins),np.nan)
         arrays[f'band_{band}_frequency_hz']=p.f

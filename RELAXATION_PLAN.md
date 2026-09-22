@@ -108,3 +108,14 @@ no-interior state as well. Both pilot frequency bands were inspected with
 0.25/0.5/1-second windows and 90% overlap. Local pilot run IDs are stored in
 `.analysis/time_frequency_pilot_runs.json`. Window dependence and beating are
 visible; STFT fitting and statistically justified decay acceptance remain open.
+
+Milestone 5: addressed the observed Windows atomic JSON replacement failure
+with bounded retries limited to permission/sharing failures. Tests verify the
+old file remains intact until success, permanent failure is surfaced after a
+bounded retry, and no invalid JSON or temporary files are left behind.
+Repeat-statistics primitives pass three tests: unequal group sizes recover
+known single-scan noise variance, measured disjoint-pool noise decreases without
+imposing sqrt(N), and phase cancellation/known-interference labels remain
+separate from molecular assignment. The frequency-decay scatter calculation now
+uses the exact count-weighted variance estimate. Classification tool integration
+and experimental accumulation evaluation remain open.
