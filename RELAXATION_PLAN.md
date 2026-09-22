@@ -213,3 +213,27 @@ remaining justified model checks and the full minimum iteration interval are sti
 required before completion. Experimental limitations
 and failed routes remain in local `.analysis` reports; none imply accepted J,
 intrinsic T2, or uniquely resolved physical decay components.
+
+## Native spectral template memory and stability
+
+Native FFT decay and fixed-transition templates use an analytic finite-record
+expression when its estimated dense work is small. Before allocating mirror-edge
+maps, the implementation estimates their temporary arrays and switches to a
+full-record sampled implementation above 32 MiB. Per-call transition work is
+also checked. This threshold selects a backend; it is not a process RSS limit.
+The sampled implementation retains every sample, transition and selected bin,
+evaluates phase arrays in chunks, subtracts mirror SG by FFT convolution, then
+applies the original crop and native FFT. Full-record memory still scales with
+record length; repeated sampled calls can cost more than analytic calls.
+
+Fast decays additionally select the sampled path when rate times the SG
+half-window duration exceeds eight, avoiding cancellation in analytic mirror
+corrections. This changes numerical evaluation, not allowed decay bounds,
+normalization, acquisition time origin or phase-delay convention. Results expose
+backend call counts and the dense-work estimate through template diagnostics.
+
+Independent direct Savitzky-Golay plus FFT tests cover large windows, phase delay,
+fast decay and agreement with the small analytic path. An experimental regression
+using unchanged settings reproduces all four reference candidate frequencies,
+T2* values and frozen validation errors exactly. Numerical equivalence does not
+establish physical identifiability or resolve reproducible model residuals.

@@ -11,7 +11,7 @@ import time
 import numpy as np
 from scipy.linalg import eigh
 from scipy.optimize import least_squares
-from scipy.signal import savgol_coeffs
+from scipy.signal import savgol_coeffs, fftconvolve
 from scipy.stats import qmc
 from . import storage, simulation
 
@@ -90,6 +90,9 @@ def transitions(parameters, isotopomer):
 
 class ProcessedSpectrum:
     """Exact FFT bins of damped modes after full-record mirror SG and time crop."""
+    dense_work_limit_bytes = 32*1024**2
+    sampled_chunk_cells = 262144
+
     def __init__(self, fs, full_points, first, last, bins, sg_window=0, sg_order=2):
         self.fs,self.full_points,self.first,self.last = fs,full_points,first,last
         self.n = last-first
@@ -100,10 +103,49 @@ class ProcessedSpectrum:
         self.offsets = np.arange(-(sg_window//2),sg_window//2+1) if sg_window else np.array([0])
         m = sg_window//2
         self.edge = np.concatenate([np.arange(first,min(last,m)), np.arange(max(first,full_points-m),last)]) if m else np.array([],int)
+        # Include temporary index sorting, two-column smoothing and FFT arrays,
+        # not just the final cache. Avoid allocating the dense mirror map first.
+        self.estimated_dense_work_bytes = int(48*len(self.f)*len(self.edge)+96*len(self.edge)*len(self.offsets))
+        self.sampled_backend = self.estimated_dense_work_bytes > self.dense_work_limit_bytes
+        self.sampled_template_calls = 0
+        self.analytic_template_calls = 0
+        if self.sampled_backend:
+            self.edge_fft = None
+            self.edge_indices = self.edge_inverse = np.array([],int)
+            return
         self.edge_fft = np.exp(-2j*np.pi*self.f[:,None]*(self.edge-first)[None,:]/fs)/self.n
         idx = self.edge[:,None]+self.offsets if len(self.edge) else np.zeros((0,len(self.offsets)),int)
         idx = np.where(idx < 0,-idx,idx); idx = np.where(idx >= full_points,2*full_points-2-idx,idx)
         self.edge_indices,self.edge_inverse = np.unique(idx,return_inverse=True)
+
+    def _sampled_templates(self, frequencies, weights, rate, phase_delay_s):
+        """Bounded phase chunks and FFT convolution preserve the full record."""
+        self.sampled_template_calls += 1
+        raw = np.empty((self.full_points,2),float)
+        chunk = max(1,self.sampled_chunk_cells//len(frequencies))
+        phase_weights = weights*np.exp(-2j*np.pi*frequencies*phase_delay_s)
+        lam = -rate+2j*np.pi*frequencies
+        for first in range(0,self.full_points,chunk):
+            last = min(first+chunk,self.full_points)
+            times = np.arange(first,last)/self.fs
+            wave = np.exp(times[:,None]*lam[None,:])@phase_weights
+            raw[first:last,0] = wave.real
+            raw[first:last,1] = wave.imag
+        if self.window:
+            m=self.window//2
+            padded=np.pad(raw,((m,m),(0,0)),mode='reflect')
+            baseline=fftconvolve(padded,self.coeff[:,None],mode='valid',axes=0)
+            raw-=baseline
+        retained=raw[self.first:self.last]
+        return np.fft.rfft(retained,axis=0)[self.bins]/self.n
+
+    def template_diagnostics(self):
+        return dict(estimated_dense_work_bytes=self.estimated_dense_work_bytes,
+                    dense_work_switch_bytes=self.dense_work_limit_bytes,
+                    sampled_phase_chunk_cells=self.sampled_chunk_cells,
+                    analytic_calls=self.analytic_template_calls,
+                    sampled_fft_calls=self.sampled_template_calls,
+                    note='Dense-work estimate selects a backend, not a process-wide memory cap. Sampled work retains the full FID and scales with record length; no points, transitions or bins are silently removed.')
 
     def templates(self, frequencies, weights, rate, phase_delay_s=0.):
         f,w = np.asarray(frequencies),np.asarray(weights)
@@ -111,6 +153,12 @@ class ProcessedSpectrum:
         lam = -rate+2j*np.pi*np.r_[f,-f]
         if not np.isfinite(phase_delay_s):
             raise ValueError('Phase delay must be finite.')
+        # The analytic mirror correction subtracts large intermediate terms for
+        # fast decay and wide SG windows. Sampling avoids overflow/cancellation.
+        dynamic_bytes=64*len(lam)*(len(self.offsets)+len(self.f)+len(self.edge_indices))
+        if self.sampled_backend or dynamic_bytes>self.dense_work_limit_bytes or rate*(self.window//2)/self.fs>8:
+            return self._sampled_templates(f,w,rate,phase_delay_s)
+        self.analytic_template_calls += 1
         positive=w*np.exp(-2j*np.pi*f*phase_delay_s)
         negative=positive.conj()
         coeff = np.column_stack([np.r_[positive,negative]/2, np.r_[positive,-negative]/(2j)])
@@ -311,6 +359,7 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     storage.write_json(directory/'parameter_sensitivity.json',{'parameters':free+['log_rate_'+k for k in rate_names],
         'jacobian_norms':norms.tolist(),'jacobian_column_cosines':correlation.tolist(),'scaled_singular_values':sv.tolist()})
     report={'parent_run_id':comparison_run_id,'source_variant':variant_index,'source_sha256':variant['sha256'],
+            'template_diagnostics':processor.template_diagnostics(),
             'preprocessing':params,'settings':s,'ranges_hz':ranges,'free_parameters':free,
             'parameters_hz':p,'fixed_parameters_hz':{k:p[k] for k in NAMES if k not in free},
             'decay_rates_per_s':rates_for(best.x),'active_isotopomers':active,

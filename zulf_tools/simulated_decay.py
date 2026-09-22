@@ -93,6 +93,7 @@ def fit_simulated_decay(fit_run_id, model_run_id, shared_decay=False, isotopomer
         discovery_groups=parent['discovery_groups'],validation_groups=parent['validation_groups'],
         t2_bounds_s=decay_bounds,parent_t2_bounds_s=parent['t2_bounds_s'],t2_bounds_overridden=t2_bounds is not None,
         preprocessing=spec,settings=config,fit=fit,bands=bands,
+        template_diagnostics=p.template_diagnostics(),
         validation_relative_complex_residual=error(held,prediction),scientifically_validated=False,
         warnings=['J and relative transition weights are fixed assumptions, not independently established facts.',
         'If J was estimated from all scans, validation is conditional on that selection, not untouched validation of J.',

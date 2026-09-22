@@ -175,6 +175,7 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
             'ranges_hz':ranges,'t2_bounds_s':list(t2_bounds),'bounds_origin':bounds_origin,
             'bounds_proposal':bounds_proposal,
             'components':components,'settings':s,'candidates':records,
+            'template_diagnostics':[dict(band_index=b,**p.template_diagnostics()) for b,_,_,p,_,_ in band_inputs],
             'configuration_schedule':schedule,
             'candidate_order':'Band index, mode count, shared before independent. Execution prioritizes simpler configurations across bands.',
             'completed_configurations':work,'requested_configurations':total,
