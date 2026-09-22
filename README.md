@@ -639,3 +639,13 @@ optimizer checkpoint or recovery mechanism after process termination. Cancellati
 continues to retain previously saved operation artifacts rather than returning a
 successful fit. Fixed-transition and magnitude-refit solvers retain their separate
 existing histories; this ledger describes the shared oscillatory-mode solver.
+
+Signal evidence and decay identifiability are separate gates. An end-to-end
+synthetic test runs the decoder, grouping, bounded fit, repeat-signal inspection
+and evidence report: an otherwise converged coherent oscillator loses reportable
+candidate T2* when it is explicitly marked as interference or disappears through
+validation-group phase cancellation. The raw fit remains available for diagnosis.
+Without external interference information, reproducibility alone can only label
+it a signal candidate. Even a supported signal never receives automatic physical
+component acceptance. Frequency matching to a detected peak is also required;
+additional fitted modes cannot borrow the same peak's support.

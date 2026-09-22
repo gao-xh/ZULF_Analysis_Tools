@@ -203,6 +203,44 @@ class ToolsTests(unittest.TestCase):
                          [(r['start_s'],r['end_s']) for r in changed['candidate_intervals']])
         self.assertTrue(storage.artifact(crop['run_id'],'tail_processed_fid.png').exists())
 
+    def test_interference_and_validation_failure_withhold_decay_report(self):
+        # A coherent oscillator is reproducible regardless of its physical origin.
+        # Explicit interference metadata must override that reproducibility.
+        def write_scan(scan, values):
+            words=np.r_[np.zeros(20,dtype='<i2'),values[::-1],np.zeros(2,dtype='<i2')].astype('<i2')
+            (self.source/f'{scan}.dat').write_bytes(words.tobytes()[::-1])
+        write_scan(12,self.originals[0])
+        for validation_present in [True,False]:
+            if not validation_present:
+                write_scan(8,self.originals[0])
+                write_scan(12,-self.originals[0])
+            grouped=analysis.execute('compute_group_averages',
+                {'folder':str(self.source),'groups':[[0],[2],[8],[12]]})
+            common=dict(group_run_id=grouped['run_id'],ranges=[[35,45]],
+                        discovery_groups=[0,1],validation_groups=[2,3],
+                        preprocessing={'start_s':.125})
+            fit=analysis.execute('fit_frequency_decay',dict(common,t2_bounds=[.2,2.],
+                components=[1],settings={'starts':1}))
+            self.assertTrue(fit['candidates'][0]['optimizer_converged'])
+            for interference in ([False,True] if validation_present else [False]):
+                signal=analysis.execute('inspect_repeat_signals',dict(common,
+                    noise_ranges=[[60,70]],max_candidates=1,
+                    interference_ranges=[[39,41]] if interference else []))
+                classification=signal['candidates'][0]['classification']
+                expected=('suspected_interference' if interference else
+                          'reproducible_signal_candidate' if validation_present else 'insufficient_evidence')
+                self.assertEqual(classification,expected)
+                reviewed=analysis.execute('review_decay_evidence',dict(fit_run_id=fit['run_id'],
+                    signal_run_ids=[signal['run_id']]))
+                row=reviewed['modes'][0]
+                if expected=='reproducible_signal_candidate':
+                    self.assertIsNotNone(row['candidate_t2star_s'])
+                else:
+                    self.assertIsNone(row['candidate_t2star_s'])
+                    self.assertEqual(row['interpretation_status'],'insufficient_signal_evidence')
+                self.assertFalse(row['physical_component_accepted'])
+                self.assertEqual(row['signal_evidence'][0]['classification'],expected)
+
     def test_bad_files_and_changed_source_rejected(self):
         m = data.inventory(self.source)
         (self.source/'0.dat').write_bytes(b'bad')
