@@ -1,0 +1,157 @@
+"""Range-restricted effective decay analysis with disjoint-group evaluation."""
+import time
+import numpy as np
+from . import storage
+from .repeats import load_group_averages
+from .jfit import ProcessedSpectrum
+from .decay import fit_modes, mode_design, real_projection
+
+
+def _indices(value, size, label):
+    if not isinstance(value,list) or not value or any(type(i) is not int or not 0<=i<size for i in value):
+        raise ValueError(label+' must contain valid group indices.')
+    if len(set(value))!=len(value):
+        raise ValueError(label+' must not contain duplicates.')
+    return value
+
+
+def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_groups,
+                        t2_bounds=None, components=None, preprocessing=None,
+                        settings=None, *, record, directory, cancel, progress):
+    """Fit discovery mean; predict validation without changing any coefficient.
+
+    Validation is a model-comparison set, not an untouched final test set after
+    model selection. No physical component assignment or automatic acceptance.
+    """
+    from .analysis import recipe, plot
+    started=time.perf_counter()
+    means,counts,parent=load_group_averages(group_run_id)
+    train=_indices(discovery_groups,len(means),'discovery_groups')
+    valid=_indices(validation_groups,len(means),'validation_groups')
+    if set(train)&set(valid):
+        raise ValueError('Discovery and validation groups must be disjoint.')
+    fs=parent['sampling_rate_hz']; points=parent['points']
+    if not isinstance(ranges,list) or not 1<=len(ranges)<=6:
+        raise ValueError('Supply one to six disjoint frequency ranges.')
+    for i,pair in enumerate(ranges):
+        if len(pair)!=2 or not np.isfinite(pair).all() or not 0<pair[0]<pair[1]<fs/2:
+            raise ValueError('Frequency ranges must be finite and inside Nyquist.')
+        if i and pair[0]<=ranges[i-1][1]:
+            raise ValueError('Frequency ranges must be sorted and disjoint.')
+    components=[1,2] if components is None else components
+    if not isinstance(components,list) or not components or any(type(k) is not int or not 1<=k<=8 for k in components) or len(set(components))!=len(components):
+        raise ValueError('components must be distinct integers from 1 to 8.')
+    s=dict(starts=4,max_nfev=150,max_evaluations=3000,max_seconds=60.,
+           total_seconds=600.,seed=20260922,compare_shared_decay=True,background=False)
+    if settings and set(settings)-set(s):
+        raise ValueError('Unknown frequency-decay settings.')
+    s.update(settings or {})
+    if not np.isfinite(s['total_seconds']) or s['total_seconds']<=0 or type(s['compare_shared_decay']) is not bool:
+        raise ValueError('Invalid total budget or compare_shared_decay flag.')
+    spec=preprocessing or {}
+    processed=[]
+    for group in means:
+        y,_,params=recipe(group,fs,spec)
+        processed.append(y)
+    processed=np.asarray(processed)
+    n=processed.shape[1]; duration=n/fs
+    if t2_bounds is None:
+        # Exploratory numerical interval, not a measured physical prior.
+        t2_bounds=[max(4/fs,duration/500),duration*2]
+        bounds_origin='Exploratory: max(4 sample periods, retained duration/500) to twice retained duration.'
+    else:
+        bounds_origin='Explicit caller-specified interval in seconds.'
+    if len(t2_bounds)!=2 or not np.isfinite(t2_bounds).all() or not 0<t2_bounds[0]<t2_bounds[1]:
+        raise ValueError('T2* bounds must be finite, positive and increasing.')
+    spectra=np.fft.rfft(processed,axis=1)/n
+    frequency=np.fft.rfftfreq(n,1/fs)
+    train_y=np.average(spectra[train],axis=0,weights=counts[train])
+    validation_y=np.average(spectra[valid],axis=0,weights=counts[valid])
+    t=np.arange(n)/fs+params['actual_start_s']
+    stride=max(1,n//12000)
+    for label,indices in [('discovery',train),('validation',valid)]:
+        average=np.average(processed[indices],axis=0,weights=counts[indices])
+        plot(directory/f'{label}_fid.png',[(t[::stride],average[::stride],label)],
+             'Recorded time (s)','ADC amplitude',label.title()+' mean after explicit preprocessing')
+    records=[]; arrays={}; work=0; halted=False
+    configurations=[(k,shared) for k in sorted(components) for shared in ([True,False] if k>1 and s['compare_shared_decay'] else [False])]
+    total=len(ranges)*len(configurations)
+    for band,(lo,hi) in enumerate(ranges):
+        bins=np.flatnonzero((frequency>=lo)&(frequency<=hi))
+        if len(bins)<8 or len(bins)>5000:
+            raise ValueError('Each requested band must contain 8..5000 native FFT bins.')
+        p=ProcessedSpectrum(fs,points,params['start_sample'],params['stop_sample'],bins,params['sg_window'],params['sg_order'])
+        observed=train_y[bins]; held=validation_y[bins]
+        # Empirical repeat scatter, including drift. Not stationary thermal noise.
+        if len(train)>1:
+            effective_n=counts[train].sum()**2/np.sum(counts[train]**2)
+            scatter=np.sqrt(np.mean(abs(spectra[train][:,bins]-observed)**2,axis=0)/(effective_n-1))
+        else:
+            scatter=np.full(len(bins),np.nan)
+        arrays[f'band_{band}_frequency_hz']=p.f
+        arrays[f'band_{band}_discovery']=observed
+        arrays[f'band_{band}_validation']=held
+        arrays[f'band_{band}_group_spectra']=spectra[:,bins]
+        arrays[f'band_{band}_discovery_scatter']=scatter
+        for modes,shared in configurations:
+            if cancel():
+                raise InterruptedError('Frequency-decay analysis cancelled.')
+            remaining=s['total_seconds']-(time.perf_counter()-started)
+            if remaining<=0:
+                halted=True
+                break
+            fit=fit_modes(p,observed,[lo,hi],t2_bounds,mode_count=modes,shared_decay=shared,
+                          starts=s['starts'],max_nfev=s['max_nfev'],max_evaluations=s['max_evaluations'],
+                          max_seconds=min(s['max_seconds'],remaining),seed=s['seed']+band*100+modes,
+                          background=s['background'],cancel=cancel)
+            prediction=fit.pop('fitted')
+            key=f'band_{band}_modes_{modes}_{"shared" if shared else "independent"}'
+            arrays[key+'_prediction']=prediction
+            # Frozen prediction is the primary held-out metric. Conditional gain
+            # refits are a separately named drift/model-shape diagnostic only.
+            denominator=float(np.linalg.norm(held))
+            validation_error=float(np.linalg.norm(held-prediction)/denominator) if denominator else None
+            group_errors=[]; group_coefficients=[]
+            design=mode_design(p,fit['frequencies_hz'],fit['t2star_s'],s['background'])
+            for g in valid:
+                target=spectra[g,bins]
+                conditional,coef,_,_=real_projection(design,target)
+                norm=float(np.linalg.norm(target))
+                group_errors.append({'group_index':g,
+                    'frozen_relative_complex_residual':float(np.linalg.norm(target-prediction)/norm) if norm else None,
+                    'conditional_gain_relative_complex_residual':float(np.linalg.norm(target-conditional)/norm) if norm else None})
+                group_coefficients.append(coef.tolist())
+            fit.update(band_index=band,range_hz=[lo,hi],mode_count=modes,
+                       validation_relative_complex_residual=validation_error,
+                       validation_group_errors=group_errors,
+                       validation_conditional_coefficients=group_coefficients,
+                       conditional_refit_note='Fixed discovery frequencies/T2*, amplitudes and phases re-estimated for diagnostics only.',
+                       artifact_prefix=key,scientifically_validated=False)
+            records.append(fit)
+            for part,transform in [('magnitude',np.abs),('real',np.real),('imaginary',np.imag)]:
+                plot(directory/f'{key}_{part}.png',[(p.f,transform(observed),'Discovery mean'),
+                     (p.f,transform(held),'Validation mean'),(p.f,transform(prediction),'Frozen prediction')],
+                     'Frequency (Hz)',part.title()+' (ADC units)',f'{lo:g}-{hi:g} Hz: {modes} mode(s), '+('shared T2*' if shared else 'independent T2*'))
+            plot(directory/f'{key}_residual.png',[(p.f,(held-prediction).real,'Validation real residual'),
+                 (p.f,(held-prediction).imag,'Validation imaginary residual')],
+                 'Frequency (Hz)','Complex residual (ADC units)','Held-out prediction residual')
+            work+=1; progress(work,total)
+            storage.write_json(directory/'candidates.json',records)
+        if halted:
+            break
+    np.savez_compressed(directory/'band_arrays.npz',**arrays)
+    return {'parent_run_id':group_run_id,'source_arrays_sha256':parent['arrays_sha256'],
+            'discovery_groups':train,'validation_groups':valid,'preprocessing':params,
+            'ranges_hz':ranges,'t2_bounds_s':list(t2_bounds),'bounds_origin':bounds_origin,
+            'components':components,'settings':s,'candidates':records,
+            'completed_configurations':work,'requested_configurations':total,
+            'total_budget_exhausted':halted,'elapsed_s':time.perf_counter()-started,
+            'scientifically_validated':False,
+            'warnings':['Modes are effective FID oscillators, not substances or intrinsic T2.',
+                'No alignment or experimental phase correction was applied.',
+                'Validation predictions freeze all discovery parameters, including gains and phases.',
+                'Reusing validation for model choice makes it a comparison set, not a final untouched test set.',
+                'Repeat scatter includes drift and signal variation; it is not a calibrated noise floor.',
+                'Finite-record leakage from outside the selected band remains possible.',
+                'This operation does not yet perform signal classification, confidence intervals or crop sensitivity.',
+                'Candidate convergence or smaller residual is not scientific acceptance.']}

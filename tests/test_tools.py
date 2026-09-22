@@ -77,6 +77,28 @@ class ToolsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'changed'):
             load_group_averages(result['run_id'])
 
+    def test_band_fit_validation_is_frozen_and_disjoint(self):
+        def run():
+            grouped=analysis.execute('compute_group_averages',
+                {'folder':str(self.source),'groups':[[0],[2],[8]]})
+            arguments=dict(group_run_id=grouped['run_id'],ranges=[[35,45]],
+                           discovery_groups=[0,1],validation_groups=[2],
+                           t2_bounds=[.2,2.],components=[1],
+                           preprocessing={'start_s':.125},settings={'starts':2})
+            with self.assertRaisesRegex(ValueError,'disjoint'):
+                analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
+            return analysis.execute('fit_frequency_decay',arguments)['candidates'][0]
+        original=run()
+        values=-self.originals[2]
+        words=np.r_[np.zeros(20,dtype='<i2'),values[::-1],np.zeros(2,dtype='<i2')].astype('<i2')
+        (self.source/'8.dat').write_bytes(words.tobytes()[::-1])
+        reversed_phase=run()
+        np.testing.assert_allclose(original['frequencies_hz'],reversed_phase['frequencies_hz'],atol=1e-10)
+        np.testing.assert_allclose(original['t2star_s'],reversed_phase['t2star_s'],atol=1e-10)
+        self.assertLess(original['validation_relative_complex_residual'],.01)
+        self.assertGreater(reversed_phase['validation_relative_complex_residual'],1.9)
+        self.assertLess(reversed_phase['validation_group_errors'][0]['conditional_gain_relative_complex_residual'],.01)
+
     def test_bad_files_and_changed_source_rejected(self):
         m = data.inventory(self.source)
         (self.source/'0.dat').write_bytes(b'bad')
@@ -142,7 +164,8 @@ class TransportTests(unittest.TestCase):
                     await session.initialize()
                     listed = await session.list_tools()
                     self.assertIn('compute_group_averages',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),16)
+                    self.assertIn('fit_frequency_decay',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),17)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

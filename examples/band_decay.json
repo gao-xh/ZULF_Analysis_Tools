@@ -1,0 +1,24 @@
+{
+  "tool": "start_analysis",
+  "arguments": {
+    "operation": "fit_frequency_decay",
+    "parameters": {
+      "group_run_id": "REPLACE_WITH_COMPLETED_GROUP_AVERAGE_RUN_ID",
+      "ranges": [[130, 139], [240, 257]],
+      "discovery_groups": [0, 2, 4, 6],
+      "validation_groups": [1, 3, 5, 7],
+      "t2_bounds": [0.05, 3.0],
+      "components": [1, 2, 3],
+      "preprocessing": {"start_s": 0.1, "sg_window": 301, "sg_order": 2},
+      "settings": {
+        "starts": 4,
+        "max_nfev": 150,
+        "max_evaluations": 3000,
+        "max_seconds": 30,
+        "total_seconds": 240,
+        "compare_shared_decay": true,
+        "background": false
+      }
+    }
+  }
+}

@@ -9,6 +9,16 @@ seeds. The new workflow will use explicit group means and band-only observations
 it must preserve raw-time phase conventions and must not infer multiple decays
 from a beat envelope alone.
 
+The user's `signal_selection/src/ui_main.py` computes Hann-window STFT with
+90% overlap, then takes magnitude. `analyze_stft_t2` follows one nearest
+frequency bin from its maximum onward and fits `A exp(-t/T2*) + C`.
+`processing.py::fit_exponential_decay` also offers a baseline-subtracted
+log-linear route. This is useful as an exploratory comparator. Its overlapping
+windows are correlated; magnitude has noise bias, a single bin can mix nearby
+frequencies, and choosing the maximum as a fit start is data-dependent. The new
+implementation must compare the explicitly windowed forward prediction and
+multiple widths/hops rather than assume every magnitude slice is an exponential.
+
 `zulf_tools/jfit.py::ProcessedSpectrum` provides exact finite-record Fourier
 templates with full-record SG baseline subtraction and mirror-edge corrections.
 The decay core reuses this forward operator. Independent real time-domain tests

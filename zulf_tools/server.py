@@ -36,6 +36,26 @@ def compute_group_averages(folder: str, groups: list[list[int]]) -> dict:
 
 
 @mcp.tool()
+def fit_frequency_decay(group_run_id: str, ranges: list[list[float]],
+                        discovery_groups: list[int], validation_groups: list[int],
+                        t2_bounds: list[float] | None = None,
+                        components: list[int] | None = None,
+                        preprocessing: dict | None = None, settings: dict | None = None) -> dict:
+    """Start band-only complex FFT effective T2* fitting on disjoint group means.
+    ranges: sorted disjoint Hz intervals. t2_bounds: [min,max] seconds; omitted
+    uses an explicitly reported exploratory interval. components: mode counts,
+    default [1,2]. Group indices are zero-based and disjoint. preprocessing uses
+    the explicit SG-baseline/crop recipe. Settings: starts, max_nfev,
+    max_evaluations, max_seconds per fit, total_seconds, seed,
+    compare_shared_decay, background. Validation freezes discovery predictions;
+    conditional gain refits are diagnostics only. No automatic physical assignment.
+    """
+    return jobs.start_analysis('fit_frequency_decay',dict(group_run_id=group_run_id,
+        ranges=ranges,discovery_groups=discovery_groups,validation_groups=validation_groups,
+        t2_bounds=t2_bounds,components=components,preprocessing=preprocessing,settings=settings))
+
+
+@mcp.tool()
 def compare_preprocessing(average_run_id: str, variants: list[dict]) -> dict:
     """Start comparison of explicit recipes on an existing average. Recipe keys:
     label, start_s, end_s (exclusive), sg_window (0=off; otherwise odd), sg_order

@@ -13,6 +13,8 @@ implementation and experimental validation below have been inspected.
   budgets through JSON CLI and typed MCP tools; rejection tests and transport test.
 - [ ] Complex demodulation with anti-aliasing, sliding-window diagnostics and
   bounded damped-oscillator fits; compare with independently constructed signals.
+  Explicitly review the user's legacy short-time FT decay implementation and
+  compare window width, hop, overlap and matched-window model predictions.
 - [ ] Single vs multiple components using held-out groups, not training error;
   export parameter stability, boundary hits and identifiability diagnostics.
 - [ ] Signal discovery separated from validation, local noise and accumulation
@@ -87,3 +89,12 @@ evaluation/time budgets and explicit boundary/convergence diagnostics.
 response, phase/single-decay recovery, equal-decay beating, noisy two-decay
 recovery, and budget/bound reporting. API integration, discovery/validation,
 demodulation, sliding windows, uncertainty and real-data evaluation remain open.
+
+Milestone 3: `fit_frequency_decay` is registered in CLI and typed MCP, with
+independent magnitude/real/imaginary/residual plots. It enforces disjoint groups
+and reports fully frozen validation predictions separately from conditional
+gain diagnostics. Eleven tool/transport tests pass, including validation-only
+phase inversion that leaves discovery parameters unchanged but worsens frozen
+prediction error. Pilot experimental evaluation completed (local progress file
+records its run ID); this is not yet a validated relaxation conclusion. Legacy
+short-time FT magnitude-slice fitting was reviewed in `RELAXATION_METHODS.md`.

@@ -19,6 +19,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `inspect_dataset` | Check numbered DAT/INI files, sample rate, lengths, sample statistics and compiled-reference metadata. |
 | `compute_average` | Stream selected raw FIDs into a coherent mean; hash inputs and compare any compiled reference. |
 | `compute_group_averages` | Stream 2..32 explicit disjoint scan groups into means, preserving scan membership and hashes for independent validation. |
+| `fit_frequency_decay` | Fit bounded damped modes on selected complex FFT bands; predict disjoint validation groups with frozen parameters. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -152,7 +153,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-16 tools including `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+17 tools including `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -176,3 +177,20 @@ with `means`, `counts`, and the scan-count-weighted `pooled` mean, plus file
 hashes and membership. No filtering, phase/frequency alignment or trimming is
 performed. Explicit subsets are not asserted to be physical acquisition batches.
 Keep discovery and validation groups disjoint; the pooled mean is not held-out data.
+
+`fit_frequency_decay` uses such a completed group run. See
+[examples/band_decay.json](examples/band_decay.json). Frequency ranges are in Hz;
+T2* bounds are in seconds; group indices are zero-based. Example bounds and
+preprocessing are exploratory, not established physical priors. `components`
+means oscillator counts, not substance counts. A two-frequency shared-decay
+model can describe beating without two distinct decay times. All coefficients,
+including phases/gains, are frozen for the main validation prediction. Separate
+conditional gain refits are explicitly diagnostic, not the held-out score.
+Selecting a model on validation makes it a comparison set rather than a final
+untouched test set. The tool reports all candidates without scientific acceptance.
+Plots of magnitude, real part, imaginary part and validation residual are separate.
+`max_seconds` and `max_evaluations` limit each fit, while `total_seconds` limits
+starting/continuing fits across the operation; output serialization/plotting may
+extend wall time beyond the optimization budget. Other goal requirements such
+as drift correction, confidence intervals, STFT comparisons and automated crop
+sensitivity remain in development and are not claimed by this operation.
