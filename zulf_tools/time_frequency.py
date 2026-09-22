@@ -120,6 +120,11 @@ def inspect_decay_time_frequency(fit_run_id, candidate_index=0, widths_s=None,
         for label,tr in transforms.items():
             arrays[f'window_{wi}_{label}']=tr['spectrum']
         for fi,f in enumerate(frequencies):
+            for part,transform in [('real',np.real),('imaginary',np.imag)]:
+                plot(directory/f'window_{wi}_frequency_{fi}_{part}.png',
+                     [(times,transform(tr['spectrum'][:,fi]),label.title()) for label,tr in transforms.items()],
+                     'Window center: recorded time (s)',part.title()+' windowed response (ADC units)',
+                     f'{f:.4f} Hz: acquisition-referenced {part}; Hann {tf["actual_width_s"]:g} s')
             plot(directory/f'window_{wi}_frequency_{fi}_magnitude.png',
                  [(times,abs(tr['spectrum'][:,fi]),label.title()) for label,tr in transforms.items()],
                  'Window center: recorded time (s)','Windowed amplitude (ADC units)',

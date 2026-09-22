@@ -281,6 +281,11 @@ may have no unaffected interior; this is reported with a null interior error,
 not silently treated as a successful comparison. Full and early-window plots
 are independent. Overlap correlation and magnitude-noise bias remain relevant;
 this diagnostic is not an independent confidence interval or substance assignment.
+Each selected frequency also has separate real and imaginary window-response
+figures, with acquisition-referenced phase and the same frozen prediction.
+These retain signed disagreement hidden by magnitude plots; they are Fourier
+components of the measured real FID, not independently acquired quadratures.
+No phase alignment or correction is applied by this diagnostic.
 
 `inspect_repeat_signals` requires explicit `ranges`, nonoverlapping reference
 `noise_ranges`, and at least two disjoint groups in each discovery/validation
