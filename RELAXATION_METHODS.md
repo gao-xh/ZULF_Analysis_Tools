@@ -145,3 +145,19 @@ core through CLI/MCP, verifies optional J-source parameter equality and keeps
 complete simulated transition support. A transport fixture with controlled
 transitions tests phase-reversed validation separately from the spin-physics
 numerical tests. Experimental acceptance remains conditional on J and preparation.
+## Global frequency-dependent phase hypothesis
+
+The exact native FFT and sampled Hann template operators optionally apply
+`cos(2*pi*f*(t-delay)+phase)` while keeping `exp(-t/T2*)` referenced to the
+original acquisition time. Positive/negative frequency coefficients remain
+conjugate, preserving a real FID and mirror-SG edge behavior. No raw samples
+are shifted. This is a bounded phase hypothesis; it does not simulate pulse
+evolution, relaxation before acquisition, or identify hardware timing uniquely.
+
+The fixed-transition solver can estimate one global delay alongside log-T2*.
+Without caller-supplied bounds it retains zero delay. Every start records its
+delay, decay and objective; boundary proximity and the exact single-frequency
+group degeneracy against free phase are flagged. Other nonlinear ambiguities
+can remain even without those flags. Independent sampled-FID tests recover a
+known 25 ms delay and original decay/amplitude/phase, check the single-line
+nonidentifiability warning, and verify the phase-aware Hann operator directly.

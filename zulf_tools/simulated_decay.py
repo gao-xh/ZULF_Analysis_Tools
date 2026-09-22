@@ -20,7 +20,8 @@ def fit_simulated_decay(fit_run_id, model_run_id, shared_decay=False, isotopomer
     names=['methine','methyl'] if isotopomers is None else isotopomers
     if not isinstance(names,list) or not names or len(set(names))!=len(names) or any(n not in ('methine','methyl') for n in names):
         raise ValueError('Invalid isotopomers.')
-    config=dict(starts=6,max_nfev=150,max_evaluations=2000,max_seconds=60.,seed=20260922,equal_band_weight=True)
+    config=dict(starts=6,max_nfev=150,max_evaluations=2000,max_seconds=60.,seed=20260922,equal_band_weight=True,
+                phase_delay_bounds_s=None)
     if settings and set(settings)-set(config):
         raise ValueError('Unknown simulated decay settings.')
     config.update(settings or {})
@@ -65,7 +66,7 @@ def fit_simulated_decay(fit_run_id, model_run_id, shared_decay=False, isotopomer
     def error(a,b):
         norm=float(np.linalg.norm(a))
         return float(np.linalg.norm(a-b)/norm) if norm else None
-    design=transition_design(p,groups,fit['t2star_s'])
+    design=transition_design(p,groups,fit['t2star_s'],fit['phase_delay_s'])
     components=[design[:,2*i:2*i+2]@np.asarray(fit['cos_sin_coefficients'][i]) for i in range(len(groups))]
     arrays=dict(frequency_hz=p.f,discovery=observed,validation=held,prediction=prediction,observation_scale=scale)
     for name,c in zip(names,components): arrays['component_'+name]=c

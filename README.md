@@ -185,6 +185,16 @@ include transition sticks, component plots, real/imaginary residuals and model
 provenance. Historical J fits using all scans do not provide an untouched
 validation prior. Unknown preparation weights remain a model assumption.
 
+An optional `settings.phase_delay_bounds_s: [-0.1, 0.1]` enables one global
+phase-equivalent delay in a fixed-J decay fit. Bounds are exploratory settings,
+not measured hardware timing. The model uses phase `-2*pi*f*delay` for each
+transition while retaining the original acquisition time and decay envelope;
+group gains absorb any common envelope reference factor. Omit the setting for
+the zero-delay baseline. Saved starts retain alternative delay solutions and
+boundary warnings. Single-frequency groups cannot distinguish this delay from
+their free group phases and are explicitly flagged. The parameter does not
+authorize raw-data alignment or establish a physical instrument delay.
+
 `fit_window_decay` takes a parent FFT `fit_run_id` and `candidate_index`, with
 `width_s`, `hop_s`, optional `sample_frequencies_hz`, and optimizer `settings`.
 It inherits the parent's group split, preprocessing, bounds and mode count.

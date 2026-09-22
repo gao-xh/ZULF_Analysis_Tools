@@ -105,11 +105,15 @@ class ProcessedSpectrum:
         idx = np.where(idx < 0,-idx,idx); idx = np.where(idx >= full_points,2*full_points-2-idx,idx)
         self.edge_indices,self.edge_inverse = np.unique(idx,return_inverse=True)
 
-    def templates(self, frequencies, weights, rate):
+    def templates(self, frequencies, weights, rate, phase_delay_s=0.):
         f,w = np.asarray(frequencies),np.asarray(weights)
         w = w/max(w.sum(),1e-30)
         lam = -rate+2j*np.pi*np.r_[f,-f]
-        coeff = np.column_stack([np.r_[w,w]/2, np.r_[w,-w]/(2j)])
+        if not np.isfinite(phase_delay_s):
+            raise ValueError('Phase delay must be finite.')
+        positive=w*np.exp(-2j*np.pi*f*phase_delay_s)
+        negative=positive.conj()
+        coeff = np.column_stack([np.r_[positive,negative]/2, np.r_[positive,-negative]/(2j)])
         gain = 1-(np.exp(lam[:,None]*self.offsets/self.fs)@self.coeff) if self.window else np.ones(len(lam))
         numerator = np.exp(lam*self.first/self.fs)*np.expm1(lam*self.n/self.fs)/self.n
         denominator = np.expm1(lam[None,:]/self.fs-2j*np.pi*self.f[:,None]/self.fs)

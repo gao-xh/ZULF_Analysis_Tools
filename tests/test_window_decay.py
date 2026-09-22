@@ -20,6 +20,9 @@ class WindowDecayTests(unittest.TestCase):
         basis=p.templates([40.3],[1.],1/.4)
         model=np.exp(-t/.4)*np.cos(2*np.pi*40.3*t+.7)
         np.testing.assert_allclose(basis@np.array([np.cos(.7),-np.sin(.7)]),p.transform(model),atol=1e-13)
+        delayed=np.exp(-t/.4)*np.cos(2*np.pi*40.3*(t-.023)+.7)
+        basis=p.templates([40.3],[1.],1/.4,phase_delay_s=.023)
+        np.testing.assert_allclose(basis@np.array([np.cos(.7),-np.sin(.7)]),p.transform(delayed),atol=1e-13)
 
     def test_fast_decay_phase_recovery_with_window_longer_than_decay(self):
         fs=256.;n=768;t=np.arange(n)/fs

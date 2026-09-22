@@ -53,15 +53,17 @@ class WindowedDecayOperator:
             retained-=retained.mean(axis=0)
         return self.matrix@retained
 
-    def templates(self, frequencies, weights, rate):
+    def templates(self, frequencies, weights, rate, phase_delay_s=0.):
         frequencies=np.asarray(frequencies,dtype=float);weights=np.asarray(weights,dtype=float)
         if frequencies.ndim!=1 or frequencies.shape!=weights.shape or not len(frequencies) or not np.isfinite(frequencies).all() or not np.isfinite(weights).all() or weights.sum()<=0 or not np.isfinite(rate) or rate<=0:
             raise ValueError('Invalid oscillatory template.')
+        if not np.isfinite(phase_delay_s):
+            raise ValueError('Phase delay must be finite.')
         # Accumulate weighted real quadratures without a full time-by-transition array.
         raw=np.zeros((self.full_points,2))
         decay=np.exp(-rate*self.time)
         for f,w in zip(frequencies,weights/weights.sum()):
-            angle=2*np.pi*f*self.time
+            angle=2*np.pi*f*(self.time-phase_delay_s)
             raw[:,0]+=w*decay*np.cos(angle)
             raw[:,1]+=w*decay*np.sin(angle)
         return self.transform(raw)

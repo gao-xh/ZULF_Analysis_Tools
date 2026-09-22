@@ -14,7 +14,8 @@ def fit_simulated_decay(fit_run_id: str, model_run_id: str, shared_decay: bool =
     Inherits parent band ranges, T2* bounds, preprocessing and group split. Model
     comes from build_isopropylamine_model; optional source J fit must match it.
     Defaults to methine+methyl, one phase/gain pair per group, equal band weighting.
-    Settings: starts, max_nfev, max_evaluations, max_seconds, seed, equal_band_weight.
+    Settings: starts, max_nfev, max_evaluations, max_seconds, seed, equal_band_weight,
+    phase_delay_bounds_s (optional bounded global frequency-dependent phase).
     All-scan J estimation makes validation conditional, not an untouched J test.
     """
     return jobs.start_analysis('fit_simulated_decay',dict(fit_run_id=fit_run_id,model_run_id=model_run_id,

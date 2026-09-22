@@ -6,7 +6,7 @@ from zulf_tools.transition_decay import fit_transition_decay
 
 
 class TransitionDecayTests(unittest.TestCase):
-    def fixture(self, taus=(.4,1.2)):
+    def fixture(self, taus=(.4,1.2), delay=0.):
         fs=256.;n=2048;t=np.arange(n)/fs
         groups=[dict(frequencies_hz=[38.,39.1],weights=[1.,.6]),
                 dict(frequencies_hz=[41.,42.3],weights=[.4,1.])]
@@ -14,7 +14,7 @@ class TransitionDecayTests(unittest.TestCase):
         for g,tau,amp,phase in zip(groups,taus,[1.3,.7],[.3,-.8]):
             w=np.asarray(g['weights']);w=w/w.sum()
             for f,weight in zip(g['frequencies_hz'],w):
-                y+=amp*weight*np.exp(-t/tau)*np.cos(2*np.pi*f*t+phase)
+                y+=amp*weight*np.exp(-t/tau)*np.cos(2*np.pi*f*(t-delay)+phase)
         y-=savgol_filter(y,41,2,mode='mirror')
         first,last=8,2040;freq=np.fft.rfftfreq(last-first,1/fs)
         bins=np.flatnonzero((freq>=35)&(freq<=45))
@@ -51,6 +51,22 @@ class TransitionDecayTests(unittest.TestCase):
         g[0]['weights']=[-1.,2.]
         with self.assertRaises(ValueError):
             fit_transition_decay(p,y,g,[.1,2.])
+
+    def test_global_delay_recovers_without_moving_decay_time_origin(self):
+        p,y,g=self.fixture(delay=.025)
+        r=fit_transition_decay(p,y,g,[.1,2.],phase_delay_bounds_s=[-.08,.08],starts=6)
+        self.assertAlmostEqual(r['phase_delay_s'],.025,places=5)
+        np.testing.assert_allclose(r['t2star_s'],[.4,1.2],atol=1e-5)
+        np.testing.assert_allclose(r['phases_rad'],[.3,-.8],atol=1e-4)
+        np.testing.assert_allclose(r['amplitudes'],[1.3,.7],atol=1e-4)
+        self.assertLess(r['relative_complex_residual'],1e-7)
+
+    def test_single_frequency_delay_is_not_identifiable_against_group_phase(self):
+        p,_,_=self.fixture()
+        g=[dict(frequencies_hz=[40.],weights=[1.])]
+        y=p.templates([40.],[1.],1/.7,phase_delay_s=.02)@np.array([1.,.2])
+        r=fit_transition_decay(p,y,g,[.1,2.],phase_delay_bounds_s=[-.05,.05],starts=2)
+        self.assertIn('phase_delay_unidentifiable_single_frequency_groups',r['numerical_warning_flags'])
 
 
 if __name__=='__main__':

@@ -172,3 +172,8 @@ Twelve integration/transport tests pass, including an explicit controlled
 transition fixture for phase-reversed validation and mismatched J provenance.
 The separate spin-physics and decay-core tests support the numerical components;
 historical all-scan J fits must not be called untouched validation priors.
+Milestone 15: optional bounded global phase delay is implemented in native FFT,
+window templates and fixed-transition fitting. Zero-delay behavior remains the
+default. Six transition-core tests include independent delay recovery and a
+single-frequency nonidentifiability counterexample. Three historical J models
+are being compared with the same exploratory delay bounds and preserved baselines.
