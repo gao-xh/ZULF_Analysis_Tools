@@ -91,6 +91,11 @@ class ToolsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
             fit=analysis.execute('fit_frequency_decay',arguments)
+            automatic=analysis.execute('fit_frequency_decay',dict(arguments,t2_bounds=None,settings={'starts':1}))
+            self.assertIsNotNone(automatic['bounds_proposal'])
+            self.assertEqual(automatic['bounds_proposal']['t2_bounds_s'],automatic['t2_bounds_s'])
+            self.assertTrue(storage.artifact(automatic['run_id'],'t2_search_proposal.json').exists())
+            fit['candidates'][0]['automatic_t2_bounds']=automatic['t2_bounds_s']
             reviewed=analysis.execute('review_decay_evidence',dict(fit_run_id=fit['run_id']))
             self.assertEqual(reviewed['modes'][0]['interpretation_status'],'insufficient_signal_evidence')
             self.assertIsNone(reviewed['modes'][0]['candidate_t2star_s'])
@@ -154,6 +159,7 @@ class ToolsTests(unittest.TestCase):
         reversed_phase=run()
         np.testing.assert_allclose(original['frequencies_hz'],reversed_phase['frequencies_hz'],atol=1e-10)
         np.testing.assert_allclose(original['t2star_s'],reversed_phase['t2star_s'],atol=1e-10)
+        self.assertEqual(original['automatic_t2_bounds'],reversed_phase['automatic_t2_bounds'])
         self.assertLess(original['validation_relative_complex_residual'],.01)
         self.assertGreater(reversed_phase['validation_relative_complex_residual'],1.9)
         self.assertLess(original['window_validation_error'],.01)

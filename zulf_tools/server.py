@@ -158,7 +158,8 @@ def fit_frequency_decay(group_run_id: str, ranges: list[list[float]],
                         preprocessing: dict | None = None, settings: dict | None = None) -> dict:
     """Start band-only complex FFT effective T2* fitting on disjoint group means.
     ranges: sorted disjoint Hz intervals. t2_bounds: [min,max] seconds; omitted
-    uses an explicitly reported exploratory interval. components: mode counts,
+    uses a discovery repeat-scatter/window proposal with saved full-record guard
+    bounds, not measured physical limits. components: mode counts,
     default [1,2]. Group indices are zero-based and disjoint. preprocessing uses
     the explicit SG-baseline/crop recipe. Settings: starts, max_nfev,
     max_evaluations, max_seconds per fit, total_seconds, seed,

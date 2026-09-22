@@ -65,10 +65,17 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
         processed.append(y)
     processed=np.asarray(processed)
     n=processed.shape[1]; duration=n/fs
+    bounds_proposal=None
     if t2_bounds is None:
-        # Exploratory numerical interval, not a measured physical prior.
-        t2_bounds=[max(4/fs,duration/500),duration*2]
-        bounds_origin='Exploratory: max(4 sample periods, retained duration/500) to twice retained duration.'
+        from .decay_bounds import noise_aware_t2_proposal
+        bounds_proposal=noise_aware_t2_proposal(processed[train],counts[train],fs,ranges,params['actual_start_s'])
+        t2_bounds=bounds_proposal['t2_bounds_s']
+        bounds_origin='Exploratory discovery repeat-scatter/window horizon; not measured physical limits.'
+        storage.write_json(directory/'t2_search_proposal.json',bounds_proposal)
+        for i,row in enumerate(bounds_proposal['bands']):
+            if 'times_s' in row:
+                plot(directory/f'band_{i}_bounds_support.png',[(row['times_s'],row['rms_ratio'],'Discovery band RMS / repeat SEM')],
+                    'Acquisition time (s)','Operational RMS ratio','Exploratory bound support; weak slow signal may remain')
     else:
         bounds_origin='Explicit caller-specified interval in seconds.'
     if len(t2_bounds)!=2 or not np.isfinite(t2_bounds).all() or not 0<t2_bounds[0]<t2_bounds[1]:
@@ -153,6 +160,7 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
     return {'parent_run_id':group_run_id,'source_arrays_sha256':parent['arrays_sha256'],
             'discovery_groups':train,'validation_groups':valid,'preprocessing':params,
             'ranges_hz':ranges,'t2_bounds_s':list(t2_bounds),'bounds_origin':bounds_origin,
+            'bounds_proposal':bounds_proposal,
             'components':components,'settings':s,'candidates':records,
             'completed_configurations':work,'requested_configurations':total,
             'total_budget_exhausted':halted,'elapsed_s':time.perf_counter()-started,

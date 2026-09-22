@@ -435,3 +435,23 @@ of all gains, which has exactly the same magnitude. Thus phases from a magnitude
 fit must not be interpreted as unique measurements. Magnitude noise bias,
 local minima and missing modes can still change inferred decays. Selected-band
 model FID plots are not a fit to the entire experimental FID.
+
+
+When `fit_frequency_decay` receives no `t2_bounds`, it now records a
+noise-informed **numerical exploration proposal**. Complete discovery-only Hann
+blocks use a width of at least three inverse band widths (and at least 16 samples),
+with at most about 64 windows. Scan-count-weighted repeat scatter provides a
+band-RMS/SEM ratio. At least two windows above the operational threshold 5 are
+needed to shorten a band's horizon; the last supported window plus one-window
+margin is retained. A later revival therefore prevents an earlier horizon.
+Insufficient repeats, resolution or signal evidence retain the full-record
+horizon. Multiple bands use the union of proposed intervals.
+
+The lower limit is max(4 sample periods, shortest horizon/500), and the upper
+limit is twice the longest horizon. These factors are numerical heuristics,
+not measured relaxation times. `t2_search_proposal.json`, independent support
+figures and the result's `bounds_proposal` record the full recipe, noise proxies,
+window widths, horizons and original full-record guard bounds. Weak slow
+components may remain below threshold: compare the guard range explicitly and
+expand bounds finitely when indicated. Caller-specified bounds remain unchanged
+and produce no automatic proposal. Validation never determines these limits.
