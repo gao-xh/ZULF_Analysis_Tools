@@ -1,6 +1,7 @@
 """Matched complex Hann observations for bounded oscillatory decay fitting."""
 import numpy as np
-from scipy.signal import get_window, savgol_filter
+from scipy.signal import get_window, savgol_coeffs
+from scipy.fft import rfft, irfft, next_fast_len
 from scipy.sparse import csr_matrix
 from .decay import fit_modes
 
@@ -18,6 +19,13 @@ class WindowedDecayOperator:
             raise ValueError('Invalid sample rate or full record size.')
         self.fs=fs;self.full_points=full_points
         _,_,self.parameters=recipe(np.zeros(full_points),fs,preprocessing or {})
+        window=self.parameters['sg_window']
+        self.sg_fft=None
+        if window:
+            # Linear convolution of the mirror-padded full record. Cache the
+            # fixed kernel transform across thousands of template evaluations.
+            self.sg_nfft=next_fast_len(full_points+2*(window-1),real=True)
+            self.sg_fft=rfft(savgol_coeffs(window,self.parameters['sg_order']),self.sg_nfft)
         self.first=self.parameters['start_sample'];self.last=self.parameters['stop_sample']
         self.n=self.last-self.first
         self.targets=np.asarray(frequencies,dtype=float)
@@ -47,7 +55,13 @@ class WindowedDecayOperator:
             raise ValueError('Supply finite real full-record FID columns.')
         p=self.parameters
         if p['sg_window']:
-            values=values-savgol_filter(values,p['sg_window'],p['sg_order'],axis=0,mode='mirror')
+            m=p['sg_window']//2
+            padding=[(m,m)]+[(0,0)]*(values.ndim-1)
+            padded=np.pad(values,padding,mode='reflect')
+            kernel=self.sg_fft if values.ndim==1 else self.sg_fft[:,None]
+            convolution=irfft(rfft(padded,self.sg_nfft,axis=0)*kernel,self.sg_nfft,axis=0)
+            baseline=convolution[p['sg_window']-1:p['sg_window']-1+self.full_points]
+            values=values-baseline
         retained=values[self.first:self.last].copy()
         if p.get('remove_mean',True):
             retained-=retained.mean(axis=0)

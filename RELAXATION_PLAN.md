@@ -237,3 +237,19 @@ fast decay and agreement with the small analytic path. An experimental regressio
 using unchanged settings reproduces all four reference candidate frequencies,
 T2* values and frozen validation errors exactly. Numerical equivalence does not
 establish physical identifiability or resolve reproducible model residuals.
+
+## Cached SG in matched window models
+
+The matched Hann operator caches the Fourier transform of its fixed SG kernel.
+Each real template column is mirror-padded over the full record and filtered by
+linear FFT convolution before the existing crop, mean subtraction and sparse
+window projection. Padding to the full convolution length prevents circular
+wraparound. This preserves both record edges and acquisition time; no shortened
+record or post-crop smoothing approximation is introduced. The raw-data recipe
+remains independently implemented with direct Savitzky-Golay filtering.
+
+Tests compare single and multiple columns, both endpoint impulses, near-full
+record windows and mean-removal settings against the independent direct filter.
+This optimization reduces repeated convolution work, but requires full-record
+temporary arrays and does not guarantee total fit speed or convergence. Existing
+time budgets, partial start histories and native-frequency cross-checks remain.

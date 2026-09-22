@@ -47,7 +47,22 @@ class WindowDecayTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 WindowedDecayOperator(256.,768,{},[40.],width,hop)
         with self.assertRaisesRegex(ValueError,'two million'):
-            WindowedDecayOperator(4000.,65516,{},[120.,130.,140.],1.,.001)
+                WindowedDecayOperator(4000.,65516,{},[120.,130.,140.],1.,.001)
+
+    def test_cached_sg_matches_direct_filter_for_columns_and_both_edges(self):
+        rng=np.random.default_rng(719)
+        values=rng.normal(size=(1024,2))
+        values[0]+=[50.,-20.];values[-1]+=[-30.,40.]
+        for window in [31,301,1001]:
+            for remove_mean in [False,True]:
+                spec={'sg_window':window,'sg_order':3,'remove_mean':remove_mean}
+                op=WindowedDecayOperator(256.,1024,spec,[37.,43.],.25,.125)
+                original=values.copy()
+                direct=values-savgol_filter(values,window,3,axis=0,mode='mirror')
+                if remove_mean:direct-=direct.mean(axis=0)
+                np.testing.assert_allclose(op.transform(values),op.matrix@direct,atol=2e-11,rtol=2e-9)
+                np.testing.assert_allclose(op.transform(values[:,0]),op.transform(values)[:,0],atol=2e-12)
+                np.testing.assert_array_equal(values,original)
 
 
 if __name__=='__main__':
