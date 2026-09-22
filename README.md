@@ -455,3 +455,23 @@ window widths, horizons and original full-record guard bounds. Weak slow
 components may remain below threshold: compare the guard range explicitly and
 expand bounds finitely when indicated. Caller-specified bounds remain unchanged
 and produce no automatic proposal. Validation never determines these limits.
+
+
+## Reproducing drift counterexamples
+
+From the project root and its Python environment, run:
+
+```powershell
+.venv/Scripts/python.exe -m examples.validate_drift
+```
+
+This uses no experimental inputs. It writes a provenance manifest, independent
+figures and numerical arrays under a new `.analysis/runs/<run_id>` directory.
+The examples use known T2*=1.3 s and distinguish constant between-acquisition
+phase offsets, between-acquisition frequency shifts and within-FID linear
+frequency drift. A pooled two-mode spectrum can be reproduced exactly by
+averaging two single-mode acquisitions at different frequencies. It does not
+prove two components coexist in either acquisition. Stationary fits to a chirp
+can converge with clean numerical flags while biasing T2* and retaining a
+structured residual. These counterexamples motivate independent group and
+residual checks; they do not establish drift in a particular experiment.
