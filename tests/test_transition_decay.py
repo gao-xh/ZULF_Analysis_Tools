@@ -35,6 +35,16 @@ class TransitionDecayTests(unittest.TestCase):
         r=fit_transition_decay(p,y,g,[.1,2.],shared_decay=True,starts=3)
         np.testing.assert_allclose(r['t2star_s'],[.7,.7],atol=1e-5)
 
+    def test_warm_start_cache_and_budget_ledger(self):
+        p,y,g=self.fixture()
+        r=fit_transition_decay(p,y,g,[.1,2.],starts=1,initial_t2star_s=[.4,1.2])
+        np.testing.assert_allclose(r['t2star_s'],[.4,1.2],atol=1e-5)
+        self.assertGreater(r['template_cache']['hits'],0)
+        np.testing.assert_allclose(r['start_attempts'][0]['initial_parameters'],np.log([.4,1.2]))
+        limited=fit_transition_decay(p,y,g,[.1,2.],max_evaluations=2)
+        self.assertEqual(limited['start_attempts'][-1]['status'],'budget_stopped')
+        with self.assertRaises(ValueError):fit_transition_decay(p,y,g,[.1,2.],initial_t2star_s=[.4])
+
     def test_expansion_recovers_out_of_range_decay_without_hiding_boundary(self):
         p,y,g=self.fixture((.07,.7))
         restricted=fit_transition_decay(p,y,g,[.1,2.],starts=4)

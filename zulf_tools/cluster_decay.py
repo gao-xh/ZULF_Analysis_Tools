@@ -52,7 +52,7 @@ def fit_j_cluster_decay(group_run_id, carbon_run_id, ranges, discovery_groups, v
         if len(b)!=2 or not np.isfinite(b).all() or not 0<b[0]<b[1] or (i and b[0]<=ranges[i-1][1]):raise ValueError('Ranges must be positive, ordered and disjoint.')
     bounds=[.05,3.] if t2_bounds is None else t2_bounds
     if len(bounds)!=2 or not np.isfinite(bounds).all() or not 0<bounds[0]<bounds[1]:raise ValueError('Invalid T2* bounds.')
-    config=dict(starts=4,max_nfev=150,max_evaluations=6000,max_seconds=120.,seed=20260922,phase_delay_bounds_s=None)
+    config=dict(starts=4,max_nfev=150,max_evaluations=6000,max_seconds=120.,seed=20260922,phase_delay_bounds_s=None,response_penalty=0.,initial_t2star_s=None)
     if settings and set(settings)-set(config):raise ValueError('Unknown solver setting.')
     config.update(settings or {})
     groups=[];tables={}
@@ -105,6 +105,7 @@ def fit_j_cluster_decay(group_run_id, carbon_run_id, ranges, discovery_groups, v
         bands.append(dict(range_hz=[lo,hi],validation_complex_error=float(np.linalg.norm(held[m]-pred[m])/np.linalg.norm(held[m]))))
         for part,fn in [('magnitude',np.abs),('real',np.real),('imaginary',np.imag)]:
             traces=[(p.f[m],fn(y[m]),name) for y,name in [(observed,'Discovery'),(held,'Validation'),(pred,'Frozen prediction')]]
+            plot(directory/f'band_{b}_{part}_total.png',traces,'Frequency (Hz)',part.title()+' (ADC units)',f'Fixed-J total prediction: {lo:g}-{hi:g} Hz')
             traces += [(p.f[m],fn(y[m]),g['name']) for y,g in zip(terms,groups)]
             plot(directory/f'band_{b}_{part}.png',traces,'Frequency (Hz)',part.title()+' (ADC units)',f'Fixed-J cluster decay: {lo:g}-{hi:g} Hz')
         plot(directory/f'band_{b}_residual.png',[(p.f[m],(held-pred)[m].real,'Real'),(p.f[m],(held-pred)[m].imag,'Imaginary')],
