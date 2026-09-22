@@ -183,3 +183,24 @@ draw plans preserve group membership and scan-count weighting; independent
 validation groups are excluded. Failed branches can suppress misleadingly
 narrow summaries. Experimental block-length comparisons are being collected;
 the output does not establish calibrated confidence intervals.
+
+
+## Subsequent implemented evidence (completion remains unproven)
+
+- Evidence review links compatible signal, group-stability, resampling and
+  method/crop comparisons, retaining missing evidence and physical nonacceptance.
+- Explicit fixed-J T2* bound expansion is available and independently tested.
+- Discovery-only crop diagnostics retain full-record alternatives; fine early
+  RMS thresholds and held-out checks expose transient/crop sensitivity.
+- Matched demodulated-time fitting includes explicit finite-record edge policies,
+  anti-aliasing and original FFT cross-checks. The full suite reached 60 tests.
+- Repeat-signal diagnostics now quantify group spectral coherence and masked
+  common phase without alignment or bin-count SNR inflation. Group frequency
+  refits remain separate; unstable mode shifts are not physical drift estimates.
+
+A requirement-by-requirement closing audit is still needed. In particular,
+objective comparisons, remaining synthetic drift/identifiability scenarios,
+workflow examples, complete cost/provenance summaries and the full minimum
+iteration interval must be verified before completion. Experimental limitations
+and failed routes remain in local `.analysis` reports; none imply accepted J,
+intrinsic T2, or uniquely resolved physical decay components.

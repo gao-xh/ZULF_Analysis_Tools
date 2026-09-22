@@ -1,9 +1,20 @@
 import unittest
 import numpy as np
-from zulf_tools.repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility
+from zulf_tools.repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility,spectral_coherence
 
 
 class RepeatStatisticsTests(unittest.TestCase):
+    def test_band_phase_cancellation_without_bin_count_snr_inflation(self):
+        reference=np.array([1.,2.,3.],complex);phases=np.array([-np.pi/3,np.pi/3])
+        spectra=np.exp(1j*phases[:,None])*reference
+        r=spectral_coherence(spectra,[1,1],reference,np.full(3,.001))
+        self.assertAlmostEqual(r['coherent_to_mean_group_norm'],.5)
+        np.testing.assert_allclose([x['relative_phase_rad'] for x in r['group_diagnostics']],phases)
+        tiled=spectral_coherence(np.tile(spectra,(1,10)),[1,1],np.tile(reference,10),np.full(30,.001))
+        self.assertAlmostEqual(r['group_diagnostics'][0]['group_rms_signal_to_scatter'],tiled['group_diagnostics'][0]['group_rms_signal_to_scatter'])
+        low=spectral_coherence(spectra,[1,1],reference,np.full(3,100.))
+        self.assertTrue(all(x['relative_phase_rad'] is None for x in low['group_diagnostics']))
+
     def test_unequal_group_noise_matches_independent_scan_variance(self):
         rng=np.random.default_rng(612);counts=np.array([20,50,100,200,30,80])
         noise=(rng.normal(size=(6,20000))+1j*rng.normal(size=(6,20000)))/np.sqrt(counts[:,None])

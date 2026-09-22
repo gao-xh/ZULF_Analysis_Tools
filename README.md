@@ -398,3 +398,18 @@ are not treated as independent observations for uncertainty estimates.
 `review_decay_evidence` accepts these runs as explicit sensitivity comparisons
 alongside window and FFT fits. Smaller demodulated residuals are not sufficient
 to establish decay identifiability or a physical component.
+
+
+`inspect_repeat_signals` additionally reports `band_coherence` on native bins
+selected only by discovery repeat-SNR, excluding declared interference ranges.
+For each role it compares the norm of the scan-weighted coherent mean with the
+weighted mean of group spectral norms. A low ratio can reflect phase, noise or
+spectral-shape changes; it is not a pure phase-loss estimate. A common complex
+overlap with the discovery reference gives group phase diagnostics, masked
+unless the group band-RMS/scatter ratio reaches the operational threshold and
+normalized shape overlap is at least 0.8. Repeating bins does not inflate this
+RMS ratio. Discovery phases share their reference and are not independent
+validation measurements. The independent group-phase and overlap figures apply
+no alignment or normalization and do not estimate frequency drift. Frequency
+changes remain separate diagnostics from `inspect_decay_stability`; unstable
+mode assignments must not be interpreted as physical drift.

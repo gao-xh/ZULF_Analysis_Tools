@@ -71,3 +71,31 @@ def classify_reproducibility(discovery_snr, validation_snr, frequency_agreement,
     if max(discovery_snr,validation_snr)<3:
         return 'noise_compatible'
     return 'insufficient_evidence'
+
+
+def spectral_coherence(spectra,counts,reference,single_scan_variance,threshold=5.):
+    """Descriptive norm cancellation and masked common phase, no correction.
+
+    The noise proxy is a band RMS, with no independent-bin aggregation gain.
+    A common complex gain is a shape diagnostic, not a frequency-drift estimate.
+    """
+    spectra=np.asarray(spectra,complex);counts=np.asarray(counts,float)
+    reference=np.asarray(reference,complex);variance=np.asarray(single_scan_variance,float)
+    weighted_repeat_statistics(spectra,counts)
+    if reference.shape!=(spectra.shape[1],) or variance.shape!=reference.shape or not np.isfinite(reference).all() or not np.isfinite(variance).all() or np.any(variance<0) or not np.isfinite(threshold) or threshold<3:
+        raise ValueError('Invalid coherence reference, variance or threshold.')
+    norms=np.linalg.norm(spectra,axis=1);pooled=np.average(spectra,axis=0,weights=counts)
+    denominator=float(np.average(norms,weights=counts));refnorm=float(np.linalg.norm(reference))
+    rows=[]
+    for i,y in enumerate(spectra):
+        proxy=float(np.sqrt(variance.sum()/counts[i]));ratio=float(norms[i]/max(proxy,1e-15))
+        overlap=np.vdot(reference,y)
+        similarity=float(np.clip(abs(overlap)/(refnorm*norms[i]),0,1)) if refnorm*norms[i]>0 else 0.
+        reliable=bool(refnorm>0 and norms[i]>0 and ratio>=threshold and similarity>=.8)
+        rows.append(dict(relative_phase_rad=float(np.angle(overlap)) if reliable else None,
+            gain_magnitude=float(abs(overlap)/refnorm**2) if refnorm>0 else None,
+            normalized_shape_overlap=similarity,group_rms_signal_to_scatter=ratio,
+            phase_reliable=reliable,zero_scatter_proxy=proxy==0))
+    return dict(coherent_to_mean_group_norm=float(np.clip(np.linalg.norm(pooled)/denominator,0,1)) if denominator>0 else None,
+        group_diagnostics=rows,shape_overlap_threshold=.8,rms_signal_to_scatter_threshold=threshold,
+        note='Descriptive coherence includes noise, phase and spectral-shape differences. No alignment or independent-bin significance claim.')

@@ -1,9 +1,10 @@
 """Discovery/validation peak checks and empirical repeat-noise diagnostics."""
 import numpy as np
 from scipy.signal import find_peaks
+from matplotlib.figure import Figure
 from . import storage
 from .repeats import load_group_averages
-from .repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility
+from .repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility,spectral_coherence
 from .band_relaxation import _indices
 
 
@@ -50,10 +51,33 @@ def inspect_repeat_signals(group_run_id, ranges, noise_ranges, discovery_groups,
             arrays[label+'_'+key]=stat[key]
     phase_mask=(discovery['repeat_snr']>=snr_threshold)&(validation['repeat_snr']>=snr_threshold)
     arrays['phase_reliability_mask']=phase_mask
+    coherence_records=[]
     for bi,(lo,hi) in enumerate(ranges):
         if cancel():raise InterruptedError('Repeat-signal inspection cancelled.')
         bins=np.flatnonzero((f>=lo)&(f<=hi))
         if len(bins)<8:raise ValueError('Each target range needs at least eight native bins.')
+        trusted=bins[discovery['repeat_snr'][bins]>=snr_threshold]
+        trusted=np.array([i for i in trusted if not any(a<=f[i]<=b for a,b in interference_ranges)],dtype=int)
+        coherence=dict(band_index=bi,discovery_selected_frequencies_hz=f[trusted].tolist(),roles={})
+        if len(trusted):
+            for role,indices in [('discovery',train),('validation',valid)]:
+                c=spectral_coherence(spectra[indices][:,trusted],counts[indices],discovery['mean'][trusted],discovery['single_scan_variance'][trusted],snr_threshold)
+                for g,row in zip(indices,c['group_diagnostics']): row['group_index']=g
+                coherence['roles'][role]=c
+            phase_traces=[(indices,[r['relative_phase_rad'] if r['phase_reliable'] else np.nan for r in coherence['roles'][role]['group_diagnostics']],role.title()) for role,indices in [('discovery',train),('validation',valid)]]
+            visible=any(np.isfinite(trace[1]).any() for trace in phase_traces)
+            coherence['phase_display_status']='masked_group_phases' if visible else 'insufficient_group_phase_evidence'
+            if visible:
+                plot(directory/f'band_{bi}_common_group_phase.png',phase_traces,
+                    'Acquisition subset index','Relative common phase (rad)','Discovery-selected bins; no phase or frequency alignment')
+            else:
+                fig=Figure(figsize=(10,4.6),layout='constrained');ax=fig.add_subplot(111);ax.set_axis_off()
+                ax.text(.5,.5,'Group phase unavailable\nNo group passes both the RMS/scatter and spectral-overlap thresholds.\nNo phase alignment was applied.',ha='center',va='center',transform=ax.transAxes)
+                fig.savefig(directory/f'band_{bi}_common_group_phase.png',dpi=150)
+            plot(directory/f'band_{bi}_group_shape_overlap.png',[(indices,[r['normalized_shape_overlap'] for r in coherence['roles'][role]['group_diagnostics']],role.title()) for role,indices in [('discovery',train),('validation',valid)]],
+                'Acquisition subset index','Normalized spectral overlap','Similarity to discovery mean; not a drift estimate')
+        else: coherence['status']='insufficient_discovery_signal_bins'
+        coherence_records.append(coherence)
         peaks,_=find_peaks(abs(discovery['mean'][bins]))
         selected=peaks[np.argsort(abs(discovery['mean'][bins[peaks]]))[::-1][:max_candidates]]
         val_peaks,_=find_peaks(abs(validation['mean'][bins]))
@@ -103,8 +127,10 @@ def inspect_repeat_signals(group_run_id, ranges, noise_ranges, discovery_groups,
     return {'parent_run_id':group_run_id,'source_arrays_sha256':parent['arrays_sha256'],
             'discovery_groups':train,'validation_groups':valid,'preprocessing':params,
             'ranges_hz':ranges,'reference_noise_ranges_hz':noise_ranges,'candidates':records,
+            'band_coherence':coherence_records,
             'operational_snr_threshold':snr_threshold,'frequency_tolerance_hz':tolerance,
             'warnings':['Repeat SNR includes group variation and drift, not a calibrated detection p value.',
+                        'Band-coherence bins use discovery SNR only; validation does not select the mask. Common phase is diagnostic, not a frequency or delay correction.',
                         'Peaks are proposed only from discovery data; validation checks reuse no fitted model.',
                         'Coherent interference can be reproducible and obey sqrt(N) SNR growth.',
                         'Reference noise bands are caller assumptions; signal leakage or drift can contaminate them.',
