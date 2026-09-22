@@ -70,6 +70,26 @@ def inspect_decay_time_frequency(fit_run_id: str, candidate_index: int = 0,
 
 
 @mcp.tool()
+def inspect_repeat_signals(group_run_id: str, ranges: list[list[float]],
+                           noise_ranges: list[list[float]], discovery_groups: list[int],
+                           validation_groups: list[int], preprocessing: dict | None = None,
+                           max_candidates: int = 8, snr_threshold: float = 5.,
+                           frequency_tolerance_hz: float | None = None,
+                           interference_ranges: list[list[float]] | None = None) -> dict:
+    """Start discovery/validation peak reproducibility and measured noise checks.
+    Need two or more disjoint groups per split. Explicit nonoverlapping noise
+    reference bands are assumptions, not automatically signal-free. Includes
+    measured disjoint-pool accumulation and masked phase plots. Labels are
+    operational candidates, not significance tests or molecular identification.
+    """
+    return jobs.start_analysis('inspect_repeat_signals',dict(group_run_id=group_run_id,
+        ranges=ranges,noise_ranges=noise_ranges,discovery_groups=discovery_groups,
+        validation_groups=validation_groups,preprocessing=preprocessing,max_candidates=max_candidates,
+        snr_threshold=snr_threshold,frequency_tolerance_hz=frequency_tolerance_hz,
+        interference_ranges=interference_ranges))
+
+
+@mcp.tool()
 def compare_preprocessing(average_run_id: str, variants: list[dict]) -> dict:
     """Start comparison of explicit recipes on an existing average. Recipe keys:
     label, start_s, end_s (exclusive), sg_window (0=off; otherwise odd), sg_order

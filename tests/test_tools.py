@@ -107,6 +107,18 @@ class ToolsTests(unittest.TestCase):
         self.assertGreater(reversed_phase['validation_relative_complex_residual'],1.9)
         self.assertLess(reversed_phase['validation_group_errors'][0]['conditional_gain_relative_complex_residual'],.01)
 
+    def test_repeat_signal_operation_proposes_on_discovery_only(self):
+        words=np.r_[np.zeros(20,dtype='<i2'),self.originals[0][::-1],np.zeros(2,dtype='<i2')].astype('<i2')
+        (self.source/'12.dat').write_bytes(words.tobytes()[::-1])
+        grouped=analysis.execute('compute_group_averages',{'folder':str(self.source),'groups':[[0],[2],[8],[12]]})
+        result=analysis.execute('inspect_repeat_signals',dict(group_run_id=grouped['run_id'],
+            ranges=[[35,45]],noise_ranges=[[60,70]],discovery_groups=[0,1],validation_groups=[2,3],
+            max_candidates=2,preprocessing={'start_s':.125}))
+        self.assertTrue(result['candidates'])
+        self.assertAlmostEqual(result['candidates'][0]['frequency_hz'],40.,delta=.6)
+        self.assertEqual(result['candidates'][0]['classification'],'reproducible_signal_candidate')
+        self.assertTrue(storage.artifact(result['run_id'],'repeat_signal_arrays.npz').exists())
+
     def test_bad_files_and_changed_source_rejected(self):
         m = data.inventory(self.source)
         (self.source/'0.dat').write_bytes(b'bad')
@@ -174,7 +186,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('compute_group_averages',{tool.name for tool in listed.tools})
                     self.assertIn('fit_frequency_decay',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_decay_time_frequency',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),18)
+                    self.assertIn('inspect_repeat_signals',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),19)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

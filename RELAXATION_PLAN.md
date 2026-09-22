@@ -119,3 +119,11 @@ imposing sqrt(N), and phase cancellation/known-interference labels remain
 separate from molecular assignment. The frequency-decay scatter calculation now
 uses the exact count-weighted variance estimate. Classification tool integration
 and experimental accumulation evaluation remain open.
+
+Milestone 6: `inspect_repeat_signals` is exposed through JSON CLI and typed MCP.
+Twelve tool/transport tests pass including an end-to-end discovery-only peak
+proposal. Pilot experimental run recorded locally in the progress file checks
+two bands with explicit reference-noise intervals and a prespecified split.
+Independent phase and accumulation figures were inspected. These are operational
+reproducibility labels, not calibrated significance or molecular assignment;
+alternate reference bands, drift diagnosis and downstream acceptance remain open.
