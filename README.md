@@ -18,6 +18,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | --- | --- |
 | `inspect_dataset` | Check numbered DAT/INI files, sample rate, lengths, sample statistics and compiled-reference metadata. |
 | `compute_average` | Stream selected raw FIDs into a coherent mean; hash inputs and compare any compiled reference. |
+| `compute_group_averages` | Stream 2..32 explicit disjoint scan groups into means, preserving scan membership and hashes for independent validation. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -151,7 +152,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-15 tools including `fit_isopropylamine_staged`, which anchors the methyl high band
+16 tools including `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -163,3 +164,15 @@ model assumptions, parameter mapping, optimizer and interpretation limits.
 4. Expose decay models with consistent processing of both observations and model.
 
 Keep legacy applications available for comparison throughout this transition.
+
+## Range-restricted relaxation development
+
+The active requirements/evidence ledger is [RELAXATION_PLAN.md](RELAXATION_PLAN.md).
+`compute_group_averages` takes `folder` and `groups`, for example
+`[[0, 2, 4], [1, 3, 5]]` when those explicit scan IDs exist. It returns a
+background job through MCP, or a completed manifest through direct JSON CLI.
+All selected groups must be nonempty and disjoint. It stores `group_averages.npz`
+with `means`, `counts`, and the scan-count-weighted `pooled` mean, plus file
+hashes and membership. No filtering, phase/frequency alignment or trimming is
+performed. Explicit subsets are not asserted to be physical acquisition batches.
+Keep discovery and validation groups disjoint; the pooled mean is not held-out data.

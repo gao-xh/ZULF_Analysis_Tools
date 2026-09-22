@@ -25,6 +25,17 @@ def compute_average(folder: str, scan_ids: list[int] | None = None) -> dict:
 
 
 @mcp.tool()
+def compute_group_averages(folder: str, groups: list[list[int]]) -> dict:
+    """Start streaming means of 2..32 explicit disjoint acquisition groups.
+    groups contains scan-ID lists, not index ranges. No alignment, filtering or
+    trimming. Returns job_id; completed run stores hashes, membership, group
+    means and scan-weighted pooled mean. Groups are not proven physical batches.
+    Use separate groups for discovery and validation, never pooled held-out data.
+    """
+    return jobs.start_analysis('compute_group_averages', {'folder': folder, 'groups': groups})
+
+
+@mcp.tool()
 def compare_preprocessing(average_run_id: str, variants: list[dict]) -> dict:
     """Start comparison of explicit recipes on an existing average. Recipe keys:
     label, start_s, end_s (exclusive), sg_window (0=off; otherwise odd), sg_order

@@ -58,6 +58,25 @@ class ToolsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'sampling rate differs'):
             data.inventory(self.source)
 
+    def test_disjoint_groups_weighted_pool_and_integrity(self):
+        from zulf_tools.repeats import load_group_averages
+        before = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in self.source.iterdir()}
+        result = analysis.execute('compute_group_averages',
+                                  {'folder':str(self.source),'groups':[[8,0],[2]]})
+        means, counts, record = load_group_averages(result['run_id'])
+        np.testing.assert_array_equal(counts,[2,1])
+        np.testing.assert_array_equal(means[0],(self.originals[2]+self.originals[0])/2)
+        np.testing.assert_array_equal(means[1],self.originals[1])
+        with np.load(storage.artifact(result['run_id'],'group_averages.npz')) as arrays:
+            np.testing.assert_allclose(arrays['pooled'],np.mean(self.originals,axis=0))
+        self.assertEqual(record['time_origin_s'],0.)
+        self.assertEqual(before,{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in self.source.iterdir()})
+        with self.assertRaisesRegex(ValueError,'disjoint'):
+            analysis.execute('compute_group_averages',{'folder':str(self.source),'groups':[[0,2],[2,8]]})
+        storage.artifact(result['run_id'],'group_averages.npz').write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError,'changed'):
+            load_group_averages(result['run_id'])
+
     def test_bad_files_and_changed_source_rejected(self):
         m = data.inventory(self.source)
         (self.source/'0.dat').write_bytes(b'bad')
@@ -122,7 +141,8 @@ class TransportTests(unittest.TestCase):
                 async with ClientSession(reader,writer) as session:
                     await session.initialize()
                     listed = await session.list_tools()
-                    self.assertEqual(len(listed.tools),15)
+                    self.assertIn('compute_group_averages',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),16)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())
