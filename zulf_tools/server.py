@@ -86,6 +86,34 @@ def simulate_spin_dynamics(model: dict, settings: dict | None = None) -> dict:
 
 
 @mcp.tool()
+def build_isopropylamine_model(parameters: dict | None = None) -> dict:
+    """Build the two single-13C eight-spin carbon/proton skeletons and J mapping.
+    Parameters (Hz): J_CH_methine, J_CH_methyl, J_HH_vicinal,
+    J_Cmethine_Hmethyl, J_Cmethyl_Hmethine, J_Cmethyl_Hother_methyl.
+    Defaults are search guesses, not measurements. NH2/14N omitted explicitly.
+    """
+    return execute('build_isopropylamine_model', {'parameters': parameters})
+
+
+@mcp.tool()
+def fit_isopropylamine_j(comparison_run_id: str, variant_index: int,
+                       ranges: list[list[float]], settings: dict | None = None) -> dict:
+    """Start exploratory multi-start J fitting to a saved complex experimental FFT.
+    Uses both natural-abundance single-13C skeletons, exact SG/crop response,
+    independent isotopomer amplitude/phase and decay rates. ranges: sorted disjoint
+    positive [low,high] Hz bands. Settings: initial (J dict), bounds (J-> [lo,hi]),
+    free_parameters (names), starts, max_nfev, screening_samples, seed, bin_stride,
+    rate_bounds [lo,hi] in 1/s, initial_rate, objective complex/magnitude (default
+    complex). Magnitude compares abs of coherently summed complex predictions,
+    fitting nuisance gains/phases internally. Returns job_id. Saves candidates,
+    J matrices, sensitivity, overlays and residuals. Does NOT uniquely identify
+    the full molecule's J values, perform repeat validation or infer confidence intervals.
+    """
+    return jobs.start_analysis('fit_isopropylamine_j', {'comparison_run_id': comparison_run_id,
+        'variant_index': variant_index, 'ranges': ranges, 'settings': settings})
+
+
+@mcp.tool()
 def start_analysis(operation: str, parameters: dict) -> dict:
     """Start any registered experimental or simulation operation in a background
     process. Returns job_id immediately.

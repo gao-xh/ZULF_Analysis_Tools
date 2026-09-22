@@ -149,6 +149,11 @@ units, sequence definitions, limitations, installation and examples. Legacy
 desktop applications are unchanged. The MCP server now exposes 12 tools; reload
 the Codex connection after updating an already running server.
 
+Two further tools now build natural-abundance isopropylamine skeleton models and
+fit candidate J values to saved experimental complex spectra. The server exposes
+14 tools with this extension. See [J_FITTING.md](J_FITTING.md) for the explicit
+model assumptions, parameter mapping, optimizer and interpretation limits.
+
 ## Next analysis milestones
 
 1. Reproduce the trusted isopropylamine spectrum, including the first-point offset.

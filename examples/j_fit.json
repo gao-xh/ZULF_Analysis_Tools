@@ -1,0 +1,19 @@
+{
+  "tool": "start_analysis",
+  "arguments": {
+    "operation": "fit_isopropylamine_j",
+    "parameters": {
+      "comparison_run_id": "REPLACE_WITH_LOCAL_COMPARISON_RUN_ID",
+      "variant_index": 0,
+      "ranges": [[110, 150], [230, 275]],
+      "settings": {
+        "objective": "magnitude",
+        "starts": 8,
+        "screening_samples": 128,
+        "max_nfev": 80,
+        "bin_stride": 3,
+        "seed": 20260922
+      }
+    }
+  }
+}

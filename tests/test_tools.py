@@ -122,7 +122,7 @@ class TransportTests(unittest.TestCase):
                 async with ClientSession(reader,writer) as session:
                     await session.initialize()
                     listed = await session.list_tools()
-                    self.assertEqual(len(listed.tools),12)
+                    self.assertEqual(len(listed.tools),14)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())
