@@ -253,3 +253,13 @@ record windows and mean-removal settings against the independent direct filter.
 This optimization reduces repeated convolution work, but requires full-record
 temporary arrays and does not guarantee total fit speed or convergence. Existing
 time budgets, partial start histories and native-frequency cross-checks remain.
+
+Oscillatory fits additionally reuse exact single-mode templates through a per-fit
+LRU cache. Keys are the unrounded floating-point frequency and T2*, so derivative
+perturbations stay distinct. The fixed processor is local to that fit; neither
+processing recipes nor observations are shared across fits. At most 128 templates
+and 8 MiB of retained template arrays are cached; larger templates are computed
+without retention. Design matrices, active columns and temporary transforms are
+outside this retained-array limit. Fit results report hits, misses and retained
+array bytes. This accelerates unchanged columns in numerical-derivative trials;
+it does not approximate the objective or alter search boundaries.

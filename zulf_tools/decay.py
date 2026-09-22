@@ -4,6 +4,7 @@ Independent oscillators are phenomenological modes, not assigned substances.
 Real cos/sin coefficients express amplitude and acquisition-referenced phase.
 """
 import time
+from collections import OrderedDict
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.signal import find_peaks
@@ -25,8 +26,46 @@ def real_projection(design, observed):
     return design@coefficients, coefficients, int(rank), condition
 
 
-def mode_design(processor, frequencies, taus, background=False):
-    columns = [processor.templates([f], [1.], 1/tau) for f, tau in zip(frequencies, taus)]
+class ModeTemplateCache:
+    """Per-fit exact-key LRU; never round nonlinear search parameters."""
+    byte_limit = 8*1024**2
+    entry_limit = 128
+
+    def __init__(self, processor):
+        self.processor=processor
+        self.entries=OrderedDict()
+        self.bytes=0
+        self.peak_bytes=0
+        self.hits=0
+        self.misses=0
+
+    def get(self, frequency, tau):
+        key=(float(frequency),float(tau))
+        if key in self.entries:
+            self.hits+=1
+            self.entries.move_to_end(key)
+            return self.entries[key]
+        self.misses+=1
+        value=self.processor.templates([frequency],[1.],1/tau)
+        if value.nbytes<=self.byte_limit and self.entry_limit>0:
+            while self.entries and (self.bytes+value.nbytes>self.byte_limit or len(self.entries)>=self.entry_limit):
+                _,old=self.entries.popitem(last=False)
+                self.bytes-=old.nbytes
+            self.entries[key]=value
+            self.bytes+=value.nbytes
+            self.peak_bytes=max(self.peak_bytes,self.bytes)
+        return value
+
+    def diagnostics(self):
+        return dict(hits=self.hits,misses=self.misses,entries=len(self.entries),
+                    retained_array_bytes=self.bytes,peak_retained_array_bytes=self.peak_bytes,
+                    array_byte_limit=self.byte_limit,entry_limit=self.entry_limit,
+                    note='Per-fit exact frequency/T2* keys; no rounding. Limits apply to retained template arrays, not total process memory or temporary designs.')
+
+
+def mode_design(processor, frequencies, taus, background=False, template_cache=None):
+    columns = [(processor.templates([f], [1.], 1/tau) if template_cache is None else template_cache.get(f,tau))
+               for f, tau in zip(frequencies, taus)]
     design = np.column_stack(columns)
     if background:
         design = np.column_stack([design, np.ones(len(processor.f)), 1j*np.ones(len(processor.f))])
@@ -130,6 +169,7 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
     upper = np.r_[np.full(mode_count,hi), np.full(tau_count,np.log(t2_bounds[1]))]
     rng = np.random.default_rng(seed)
     start_time = time.perf_counter(); evaluations = 0; best = None; history = []
+    template_cache=ModeTemplateCache(processor)
 
     def decode(x):
         taus = np.exp(x[mode_count:])
@@ -143,7 +183,7 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
             raise _BudgetReached('max_evaluations' if evaluations >= max_evaluations else 'max_seconds')
         evaluations += 1
         frequencies, taus = decode(x)
-        design = mode_design(processor,frequencies,taus,background)
+        design = mode_design(processor,frequencies,taus,background,template_cache)
         fitted, coefficients, rank, condition = real_projection(design,observed)
         residual = np.r_[(fitted-observed).real,(fitted-observed).imag]/amplitude_scale
         score = float(np.mean(residual**2))
@@ -213,6 +253,7 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
                               'seed_frequencies_hz':seeds.tolist(),'random_seed':seed},
             'start_attempts':attempts,'attempted_starts':len(attempts),
             'best_start_index':best['start_index'],'best_evaluation':best['evaluation'],
+            'template_cache':template_cache.diagnostics(),
             'start_ledger_note':'Zero-based start indices; evaluations include finite-difference trials. A budget-stopped attempt may have zero evaluations. Completed starts include optimizer endpoints without convergence. Unattempted starts are not recorded.',
             'fitted':best['fitted'],
             'interpretation':'Phenomenological effective FID modes, not intrinsic T2 or substance assignments.'}
