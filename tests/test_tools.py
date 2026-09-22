@@ -125,6 +125,10 @@ class ToolsTests(unittest.TestCase):
             self.assertEqual(demodulated['filter']['edge_policy'],'matched_all')
             self.assertTrue(storage.artifact(demodulated['run_id'],'demodulated_fit_arrays.npz').exists())
             fit['candidates'][0]['demodulated_validation_error']=demodulated['fit']['validation_relative_complex_residual']
+            compared=analysis.execute('compare_decay_objectives',dict(fit_run_id=fit['run_id'],settings={'starts':1}))
+            fit['candidates'][0]['magnitude_validation_metrics']=compared['comparison']['validation']['magnitude_fit']
+            self.assertTrue(compared['fit']['phase_sign_ambiguous'])
+            self.assertTrue(storage.artifact(compared['run_id'],'signed_model_fid.png').exists())
             stability=analysis.execute('inspect_decay_stability',dict(fit_run_id=fit['run_id'],settings={'starts':2}))
             self.assertEqual(stability['completed_groups'],1)
             group=stability['group_fits'][0]
@@ -158,6 +162,9 @@ class ToolsTests(unittest.TestCase):
         self.assertGreater(reversed_phase['simulated_validation_error'],1.9)
         self.assertLess(original['demodulated_validation_error'],.01)
         self.assertGreater(reversed_phase['demodulated_validation_error'],1.9)
+        self.assertLess(original['magnitude_validation_metrics']['magnitude'],.01)
+        self.assertLess(reversed_phase['magnitude_validation_metrics']['magnitude'],.01)
+        self.assertGreater(reversed_phase['magnitude_validation_metrics']['complex'],1.9)
         self.assertLess(reversed_phase['validation_group_errors'][0]['conditional_gain_relative_complex_residual'],.01)
 
     def test_repeat_signal_operation_proposes_on_discovery_only(self):
@@ -265,7 +272,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('review_decay_evidence',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_fid_crops',{tool.name for tool in listed.tools})
                     self.assertIn('fit_demodulated_decay',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),26)
+                    self.assertIn('compare_decay_objectives',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),27)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

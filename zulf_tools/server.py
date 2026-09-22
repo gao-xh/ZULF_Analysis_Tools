@@ -7,6 +7,16 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def compare_decay_objectives(fit_run_id: str, candidate_index: int = 0, settings: dict | None = None) -> dict:
+    """Compare a complex FFT candidate with a magnitude-only bounded refit.
+    Same data/groups, processing, mode count and frequency/T2* bounds. Complex-fit
+    initialization is explicit; magnitude cannot determine global FID sign.
+    Settings: starts, max_nfev, max_evaluations, max_seconds, seed.
+    """
+    return jobs.start_analysis('compare_decay_objectives',dict(fit_run_id=fit_run_id,candidate_index=candidate_index,settings=settings))
+
+
+@mcp.tool()
 def fit_demodulated_decay(fit_run_id: str, candidate_index: int = 0, transition_hz: float | None = None,
                           attenuation_db: float = 80., edge_policy: str = 'matched_all', settings: dict | None = None) -> dict:
     """Refit a bounded FFT candidate through matched complex demodulation.

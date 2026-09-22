@@ -23,6 +23,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `inspect_decay_time_frequency` | Compare a frozen decay candidate through matched Hann windows and anti-aliased complex demodulation. |
 | `inspect_repeat_signals` | Propose peaks on discovery groups, check validation reproducibility, measured accumulation and masked phase. |
 | `inspect_decay_stability` | Refit bounded group means from discovery initializations; separate frozen prediction errors from diagnostic refits. |
+| `compare_decay_objectives` | Compare a complex FFT candidate with a bounded magnitude refit using identical modes, processing and frozen validation. |
 | `fit_demodulated_decay` | Fit bounded oscillatory modes through matched complex FIR demodulation, with explicit edge policy and frozen validation. |
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
@@ -162,7 +163,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-26 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+27 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -413,3 +414,24 @@ validation measurements. The independent group-phase and overlap figures apply
 no alignment or normalization and do not estimate frequency drift. Frequency
 changes remain separate diagnostics from `inspect_decay_stability`; unstable
 mode assignments must not be interpreted as physical drift.
+
+
+## Comparing magnitude and phase-preserving objectives
+
+`compare_decay_objectives` takes `fit_run_id`, `candidate_index` and optional
+bounded `settings` (starts, max_nfev, max_evaluations, max_seconds, seed).
+It starts from the existing complex fit, then jointly optimizes frequency,
+log T2* and real cosine/sine gains against `abs(sum(complex modes))`. Gains are
+nonlinear in this objective; the complex variable-projection solution is not
+silently reused as a magnitude optimum. Frequency/T2* bounds, mode count,
+preprocessing and source split remain identical. Background-free candidates
+are required. This warm start is explicitly conditional on complex analysis,
+not an independent or exhaustive phase-free search.
+
+Independent magnitude/real/imaginary/residual figures and signed selected-band
+model FIDs expose discrepancies. Validation gains remain frozen. Both magnitude
+and complex validation errors are reported, including simultaneous sign reversal
+of all gains, which has exactly the same magnitude. Thus phases from a magnitude
+fit must not be interpreted as unique measurements. Magnitude noise bias,
+local minima and missing modes can still change inferred decays. Selected-band
+model FID plots are not a fit to the entire experimental FID.
