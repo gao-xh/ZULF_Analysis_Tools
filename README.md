@@ -667,3 +667,13 @@ is estimated from experiment. All group FIDs, draw plans, fit flags and individu
 intervals are retained locally. The example illustrates why small resampling
 widths cannot establish calibrated experimental coverage when common group noise
 or model error is unaccounted for; it does not tune the method to nominal coverage.
+
+Run `python -m examples.validate_regularization` to explore conditional continuous
+decay-grid inversion. Synthetic single and nearby coincident decays are compared
+on 32/64 log-time grids with five curvature penalties. Frequency and phase are
+fixed to their known synthetic values. Nonnegative cell masses, predictions,
+noise, optimizer status and independent figures are retained locally; the
+density penalty includes grid spacing. Similar spectral predictions can accompany
+very different density widths or unsupported small spikes. This example does
+not select an optimal penalty, resolve experimental components, or supply a
+physical relaxation distribution or calibrated uncertainty interval.
