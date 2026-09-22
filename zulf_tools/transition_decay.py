@@ -23,8 +23,8 @@ def fit_transition_decay(processor, observed, groups, t2_bounds, *, shared_decay
     y=np.asarray(observed,dtype=complex)
     if y.shape!=np.asarray(processor.f).shape or len(y)<8 or not np.isfinite(y).all() or np.linalg.norm(y)==0:
         raise ValueError('Need finite nonzero complex observations matching the processor.')
-    if not isinstance(groups,list) or not 1<=len(groups)<=4:
-        raise ValueError('Supply one to four fixed transition groups.')
+    if not isinstance(groups,list) or not 1<=len(groups)<=32:
+        raise ValueError('Supply one to 32 fixed transition groups.')
     for g in groups:
         f=np.asarray(g['frequencies_hz'],dtype=float);w=np.asarray(g['weights'],dtype=float)
         if f.ndim!=1 or not 1<=len(f)<=5000 or f.shape!=w.shape or not np.isfinite(f).all() or not np.isfinite(w).all() or np.any(f<=0) or np.any(f>=processor.fs/2) or np.any(w<0) or w.sum()<=0:

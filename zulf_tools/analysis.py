@@ -229,11 +229,12 @@ from .crop_diagnostics import inspect_fid_crops
 from .demodulated_decay import fit_demodulated_decay
 from .magnitude_decay import compare_decay_objectives
 from .nitrogen import inspect_n15_hypotheses
+from .cluster_decay import fit_j_cluster_decay
 
 OPERATIONS = {f.__name__: f for f in (inspect_dataset, compute_average, compare_preprocessing,
               inspect_frequency_ranges, inspect_simulation_backend, import_spin_model,
               analyze_spin_symmetry, simulate_spin_dynamics, build_isopropylamine_model,
-              fit_isopropylamine_j, fit_isopropylamine_staged, compute_group_averages, inspect_n15_hypotheses,
+              fit_isopropylamine_j, fit_isopropylamine_staged, compute_group_averages, inspect_n15_hypotheses, fit_j_cluster_decay,
               fit_frequency_decay, inspect_decay_time_frequency, inspect_repeat_signals, inspect_decay_stability, fit_window_decay, fit_simulated_decay, resample_decay_groups, review_decay_evidence, inspect_fid_crops, fit_demodulated_decay, compare_decay_objectives)}
 
 

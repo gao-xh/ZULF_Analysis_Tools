@@ -8,6 +8,10 @@ model API is required by this backend.
 For the frequency-range relaxation workflow and its decision points, start with
 [the bounded decay guide](RELAXATION_GUIDE.md) and its editable JSON request.
 
+For fixed simulation frequencies with independently fitted peak-cluster decays,
+see [the J-constrained cluster guide](J_CLUSTER_DECAY.md) and the
+`fit_j_cluster_decay` tool. This includes optional provisional N15 transitions.
+
 ## Version 0.1 workflow
 
 `inspect_dataset → compute_average → compare_preprocessing → inspect_frequency_ranges`

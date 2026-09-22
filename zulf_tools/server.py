@@ -7,6 +7,24 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def fit_j_cluster_decay(group_run_id: str, carbon_run_id: str, ranges: list[list[float]],
+                        discovery_groups: list[int], validation_groups: list[int],
+                        nitrogen_run_id: str | None = None, cluster_edges: dict | None = None,
+                        t2_bounds: list[float] | None = None, preprocessing: dict | None = None,
+                        settings: dict | None = None) -> dict:
+    """Fit fixed-J transition clusters with independent response, phase and decay.
+    cluster_edges maps methine/methyl/N15 to sorted split frequencies; all tails
+    remain. Default methyl split: 190 Hz. Up to 32 nonempty clusters. Optional
+    N15 source must contain couplings_hz; its identity remains a hypothesis.
+    Separate repeat groups provide conditional frozen-prediction checks.
+    """
+    return jobs.start_analysis('fit_j_cluster_decay',dict(group_run_id=group_run_id,
+        carbon_run_id=carbon_run_id,ranges=ranges,discovery_groups=discovery_groups,
+        validation_groups=validation_groups,nitrogen_run_id=nitrogen_run_id,
+        cluster_edges=cluster_edges,t2_bounds=t2_bounds,preprocessing=preprocessing,settings=settings))
+
+
+@mcp.tool()
 def inspect_n15_hypotheses(j_fit_run_id: str, hypotheses: list[dict], rates_per_s: list[float],
                           abundance_n15: float = .003663, abundance_c13: float = .0107) -> dict:
     """Screen explicit N15 ten-spin or NH2-decoupled hypotheses against a frozen carbon fit.
