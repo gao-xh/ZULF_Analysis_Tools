@@ -141,7 +141,15 @@ artifact integrity, cancellation, range peak recovery and real MCP STDIO
 initialization/list/call behavior. Synthetic tests do not establish physical
 interpretations of experimental spectra.
 
-## Next milestones
+## Simulation extension
+
+Four additional tools expose the Python TwoD simulation workflow, optional CUDA
+and validated equivalent-spin sectors. See [SIMULATION.md](SIMULATION.md) for
+units, sequence definitions, limitations, installation and examples. Legacy
+desktop applications are unchanged. The MCP server now exposes 12 tools; reload
+the Codex connection after updating an already running server.
+
+## Next analysis milestones
 
 1. Reproduce the trusted isopropylamine spectrum, including the first-point offset.
 2. Add reviewed transient/baseline diagnostics and batch/scan accumulation checks.

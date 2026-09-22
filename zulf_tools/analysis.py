@@ -207,7 +207,12 @@ def inspect_frequency_ranges(comparison_run_id, ranges, max_candidates=10, *, re
                          'Range endpoints cannot be identified as peaks. No substance or decay assignments are made.']}
 
 
-OPERATIONS = {f.__name__: f for f in (inspect_dataset, compute_average, compare_preprocessing, inspect_frequency_ranges)}
+from .simulation import (inspect_simulation_backend, import_spin_model, analyze_spin_symmetry,
+                         simulate_spin_dynamics)
+
+OPERATIONS = {f.__name__: f for f in (inspect_dataset, compute_average, compare_preprocessing,
+              inspect_frequency_ranges, inspect_simulation_backend, import_spin_model,
+              analyze_spin_symmetry, simulate_spin_dynamics)}
 
 
 def execute(operation, parameters, cancel=lambda: False, progress=lambda n, total: None):

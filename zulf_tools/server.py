@@ -47,9 +47,48 @@ def inspect_frequency_ranges(comparison_run_id: str, ranges: list[list[float]], 
 
 
 @mcp.tool()
+def inspect_simulation_backend() -> dict:
+    """Test CPU/GPU availability including actual CUDA complex128 linear algebra."""
+    return execute('inspect_simulation_backend', {})
+
+
+@mcp.tool()
+def import_spin_model(folder: str) -> dict:
+    """Read legacy structure.csv and optional symmetry.csv under local model_roots.
+    Returns model with explicit Hz couplings and zero-based symmetry indices.
+    Only 1H, 13C, 15N spin-1/2 nuclei; input files remain unchanged.
+    """
+    return execute('import_spin_model', {'folder': folder})
+
+
+@mcp.tool()
+def analyze_spin_symmetry(model: dict) -> dict:
+    """Start equivalent-spin validation and exact collective-spin sector analysis.
+    Model keys: isotopes, couplings_hz, optional gamma_hz_per_ut isotope mapping,
+    optional symmetry_groups (disjoint zero-based groups; omitted=detect, []=none).
+    Returns job_id. Reports commutators and sector dimensions, not geometric symmetry.
+    """
+    return jobs.start_analysis('analyze_spin_symmetry', {'model': model})
+
+
+@mcp.tool()
+def simulate_spin_dynamics(model: dict, settings: dict | None = None) -> dict:
+    """Start 1D/2D/MQ spin-1/2 J dynamics using eigenbasis transition sums.
+    Model: isotopes, symmetric zero-diagonal couplings_hz, optional symmetry_groups
+    (zero-based), gamma_hz_per_ut. Settings: sequence fid/2d/mq; backend cpu/gpu;
+    symmetry boolean; npoints, sampling_rate_hz, t1_points, t1_step_s, tm_s,
+    t2star_s, field1_ut, field2_ut, pulse_field_ut [Bx,By,Bz], pulse_duration_s.
+    Defaults: CPU, symmetry enabled, zero pulse/field, 1024 points at 1000 Hz.
+    Positive Zeeman sign; preparation/detection gamma-weighted Ix. Returns job_id.
+    All times seconds, fields microtesla. GPU failure is explicit, never silent fallback.
+    """
+    return jobs.start_analysis('simulate_spin_dynamics', {'model': model, 'settings': settings})
+
+
+@mcp.tool()
 def start_analysis(operation: str, parameters: dict) -> dict:
-    """Start inspect_dataset, compute_average, compare_preprocessing or
-    inspect_frequency_ranges in a background process. Returns job_id immediately.
+    """Start any registered experimental or simulation operation in a background
+    process. Returns job_id immediately.
     Query get_job for progress/results, or cancel_job for cooperative cancellation.
     """
     return jobs.start_analysis(operation, parameters)
@@ -83,4 +122,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

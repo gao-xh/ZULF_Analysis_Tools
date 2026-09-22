@@ -1,4 +1,4 @@
 {
-  "input_roots": ["F:/path/to/authorized/experimental/data"]
+  "input_roots": ["F:/path/to/authorized/experimental/data"],
+  "model_roots": ["C:/path/to/authorized/molecule/presets"]
 }
-

@@ -1,0 +1,26 @@
+{
+  "tool": "start_analysis",
+  "arguments": {
+    "operation": "simulate_spin_dynamics",
+    "parameters": {
+      "model": {
+        "isotopes": ["1H", "1H", "13C"],
+        "couplings_hz": [[0, 8, 125], [8, 0, 125], [125, 125, 0]],
+        "symmetry_groups": [[0, 1]]
+      },
+      "settings": {
+        "sequence": "mq",
+        "backend": "cpu",
+        "symmetry": true,
+        "npoints": 1024,
+        "sampling_rate_hz": 1000,
+        "t1_points": 64,
+        "t1_step_s": 0.0017,
+        "tm_s": 0.01,
+        "pulse_field_ut": [0, 0, 50],
+        "pulse_duration_s": 0.0009337068,
+        "t2star_s": 1
+      }
+    }
+  }
+}

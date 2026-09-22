@@ -1,0 +1,9 @@
+# Tested CUDA 12.6 wheels for the local Windows RTX 3060 / driver 566.36.
+# Install into the project venv; no system Toolkit or driver modification.
+cupy-cuda12x==13.6.0
+nvidia-cuda-runtime-cu12==12.6.77
+nvidia-cuda-nvrtc-cu12==12.6.85
+nvidia-cublas-cu12==12.6.4.1
+nvidia-cusolver-cu12==11.7.1.2
+nvidia-cusparse-cu12==12.5.4.2
+nvidia-nvjitlink-cu12==12.6.85
