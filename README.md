@@ -42,8 +42,9 @@ Direct MCP inspection is synchronous; use `start_analysis` for large inventories
 The CLI provides both direct execution and the same background-job API. Job
 requests/status/logs survive client reconnection. A machine restart or externally
 killed worker can leave its last status as running; inspect `worker.log` and the
-recorded PID rather than treating that as ongoing progress. Automatic recovery
-and durable job resumption are not implemented yet.
+recorded PID rather than treating that as ongoing progress. The resumable plan
+example below reconnects to saved job IDs; it does not restart a killed worker
+or resume its optimizer state.
 
 ## Installation and Codex connection
 
@@ -493,3 +494,43 @@ This applies to the combined band model and does not establish which mode is
 wrong. Conversely, a ratio below the threshold does not establish adequacy,
 especially when repeat scatter is inflated by drift. These are diagnostic
 ratios, not chi-square tests, p values or physical acceptance criteria.
+
+
+## Resumable frequency-band analysis plan
+
+Copy `examples/relaxation_workflow.json` to `.analysis/my_plan.json`. Replace the
+completed group-average run ID and explicit disjoint discovery/validation group
+indices in the first three stages. Set frequency ranges, T2* bounds (or null for
+a recorded noise-informed proposal), preprocessing and budgets before starting.
+Group indices are zero-based positions in the saved group run, not scan IDs.
+The example assumes prior dataset inspection and explicit disjoint averaging;
+it never discovers or silently selects raw acquisitions.
+
+```powershell
+.venv/Scripts/python.exe -m examples.run_workflow .analysis/my_plan.json --name my_band
+```
+
+Repeat this command to advance one submission or observation at a time. Saved
+state lives in `.analysis/workflows/my_band.json`. Later stages reference earlier
+run IDs through `{"$run": "fit"}`. The plan performs crop and signal diagnostics,
+a bounded one/two-mode comparison, matched-window time diagnostics, group
+stability, conditional resampling and evidence review. Every calculation still
+uses the existing job/tools interface and its provenance records.
+
+Candidate index 0 deliberately diagnoses the single-mode baseline; it is not an
+automatic winner. Inspect all fit candidates and independent figures. A follow-up
+plan can use the chosen completed fit ID and explicit candidate index for the
+same diagnostic stages. Do not change an active plan in place: the saved digest
+rejects it. Use a new name for a revised scientific question, preserving earlier
+failures and results. Crop proposals are advisory and do not change the recorded
+fit preprocessing automatically. Multiple diagnostic methods and crop/SG
+comparisons remain necessary when residuals or stability warrant them.
+
+The controller never resubmits a running, failed, cancelled or ambiguously
+submitted job. Polling errors preserve its original handle. A dispatching record
+without a job ID requires inspection of job requests/logs before any recovery;
+a crashed controller can also leave a PID lock. Verify that process is gone
+before removing that lock. These conservative stops prevent duplicate fits;
+they are not automatic recovery from a power failure. Numerical completion of
+the plan is not scientific acceptance, and repeated model selection on the same
+validation groups is exploratory rather than a fresh blind test.

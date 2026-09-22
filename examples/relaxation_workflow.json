@@ -1,0 +1,181 @@
+{
+  "stages": [
+    {
+      "name": "crops",
+      "operation": "inspect_fid_crops",
+      "parameters": {
+        "group_run_id": "REPLACE_WITH_COMPLETED_GROUP_AVERAGE_RUN_ID",
+        "ranges": [
+          [
+            130.0,
+            139.0
+          ]
+        ],
+        "discovery_groups": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "validation_groups": [
+          1,
+          3,
+          5,
+          7
+        ],
+        "sg_window": 301
+      }
+    },
+    {
+      "name": "signals",
+      "operation": "inspect_repeat_signals",
+      "parameters": {
+        "group_run_id": "REPLACE_WITH_COMPLETED_GROUP_AVERAGE_RUN_ID",
+        "ranges": [
+          [
+            130.0,
+            139.0
+          ]
+        ],
+        "discovery_groups": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "validation_groups": [
+          1,
+          3,
+          5,
+          7
+        ],
+        "noise_ranges": [
+          [
+            150.0,
+            170.0
+          ]
+        ],
+        "preprocessing": {
+          "start_s": 0.1,
+          "end_s": 4.0,
+          "sg_window": 301,
+          "sg_order": 2
+        }
+      }
+    },
+    {
+      "name": "fit",
+      "operation": "fit_frequency_decay",
+      "parameters": {
+        "group_run_id": "REPLACE_WITH_COMPLETED_GROUP_AVERAGE_RUN_ID",
+        "ranges": [
+          [
+            130.0,
+            139.0
+          ]
+        ],
+        "discovery_groups": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "validation_groups": [
+          1,
+          3,
+          5,
+          7
+        ],
+        "t2_bounds": [
+          0.05,
+          3.0
+        ],
+        "components": [
+          1,
+          2
+        ],
+        "preprocessing": {
+          "start_s": 0.1,
+          "end_s": 4.0,
+          "sg_window": 301,
+          "sg_order": 2
+        },
+        "settings": {
+          "starts": 3,
+          "max_seconds": 20,
+          "total_seconds": 90,
+          "max_evaluations": 2000
+        }
+      }
+    },
+    {
+      "name": "time_frequency",
+      "operation": "inspect_decay_time_frequency",
+      "parameters": {
+        "fit_run_id": {
+          "$run": "fit"
+        },
+        "candidate_index": 0,
+        "widths_s": [
+          0.1,
+          0.2,
+          0.4
+        ]
+      }
+    },
+    {
+      "name": "stability",
+      "operation": "inspect_decay_stability",
+      "parameters": {
+        "fit_run_id": {
+          "$run": "fit"
+        },
+        "candidate_index": 0,
+        "settings": {
+          "starts": 2,
+          "max_seconds": 5,
+          "total_seconds": 30
+        }
+      }
+    },
+    {
+      "name": "resampling",
+      "operation": "resample_decay_groups",
+      "parameters": {
+        "fit_run_id": {
+          "$run": "fit"
+        },
+        "candidate_index": 0,
+        "draws": 20,
+        "settings": {
+          "starts": 1,
+          "max_seconds": 3,
+          "total_seconds": 60
+        }
+      }
+    },
+    {
+      "name": "review",
+      "operation": "review_decay_evidence",
+      "parameters": {
+        "fit_run_id": {
+          "$run": "fit"
+        },
+        "candidate_index": 0,
+        "signal_run_ids": [
+          {
+            "$run": "signals"
+          }
+        ],
+        "stability_run_id": {
+          "$run": "stability"
+        },
+        "resampling_run_ids": [
+          {
+            "$run": "resampling"
+          }
+        ]
+      }
+    }
+  ]
+}

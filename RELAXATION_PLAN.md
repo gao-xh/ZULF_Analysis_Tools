@@ -198,9 +198,18 @@ the output does not establish calibrated confidence intervals.
   common phase without alignment or bin-count SNR inflation. Group frequency
   refits remain separate; unstable mode shifts are not physical drift estimates.
 
-A requirement-by-requirement closing audit is still needed. In particular,
-objective comparisons, remaining synthetic drift/identifiability scenarios,
-workflow examples, complete cost/provenance summaries and the full minimum
-iteration interval must be verified before completion. Experimental limitations
+Objective comparisons, synthetic between/within-acquisition drift counterexamples,
+noise-informed default bounds and a resumable workflow example are now implemented
+and exercised. The workflow links existing persistent job IDs without automatically
+restarting failed or uncertain submissions. Actual seven-stage execution completes
+while correctly withholding support from an inadequate single-mode baseline.
+
+Frozen residual-versus-repeat-scatter review now prevents parameter stability from
+hiding reproducible missing spectral structure. A residual-guided four-mode low-band
+comparison reduces validation error but still leaves repeatable residuals.
+
+A requirement-by-requirement closing audit, complete cost/provenance summaries,
+remaining justified model checks and the full minimum iteration interval are still
+required before completion. Experimental limitations
 and failed routes remain in local `.analysis` reports; none imply accepted J,
 intrinsic T2, or uniquely resolved physical decay components.
