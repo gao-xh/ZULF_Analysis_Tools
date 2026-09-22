@@ -177,3 +177,9 @@ window templates and fixed-transition fitting. Zero-delay behavior remains the
 default. Six transition-core tests include independent delay recovery and a
 single-frequency nonidentifiability counterexample. Three historical J models
 are being compared with the same exploratory delay bounds and preserved baselines.
+Milestone 16: discovery-group resampling is callable through CLI/MCP. Two
+sampling/summary tests and twelve integration/transport tests pass. Explicit
+draw plans preserve group membership and scan-count weighting; independent
+validation groups are excluded. Failed branches can suppress misleadingly
+narrow summaries. Experimental block-length comparisons are being collected;
+the output does not establish calibrated confidence intervals.

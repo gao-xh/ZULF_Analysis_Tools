@@ -7,6 +7,20 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def resample_decay_groups(fit_run_id: str, candidate_index: int = 0, draws: int = 100,
+                           block_length: int = 1, settings: dict | None = None) -> dict:
+    """Start bounded discovery-group resampling; validation groups are untouched.
+    Circular blocks follow parent discovery-list order; block length 1 assumes
+    exchangeability. Saves every draw and flagged candidate. Conditional
+    percentile summaries require enough clean completed draws and are not
+    calibrated confidence intervals. Settings: starts, max_nfev, max_evaluations,
+    max_seconds per draw, total_seconds, seed.
+    """
+    return jobs.start_analysis('resample_decay_groups',dict(fit_run_id=fit_run_id,candidate_index=candidate_index,
+        draws=draws,block_length=block_length,settings=settings))
+
+
+@mcp.tool()
 def fit_simulated_decay(fit_run_id: str, model_run_id: str, shared_decay: bool = False,
                          isotopomers: list[str] | None = None, source_j_fit_run_id: str | None = None,
                          settings: dict | None = None) -> dict:

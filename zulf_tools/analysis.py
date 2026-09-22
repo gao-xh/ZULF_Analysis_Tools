@@ -218,12 +218,13 @@ from .signal_checks import inspect_repeat_signals
 from .decay_stability import inspect_decay_stability
 from .window_decay import fit_window_decay
 from .simulated_decay import fit_simulated_decay
+from .decay_resampling import resample_decay_groups
 
 OPERATIONS = {f.__name__: f for f in (inspect_dataset, compute_average, compare_preprocessing,
               inspect_frequency_ranges, inspect_simulation_backend, import_spin_model,
               analyze_spin_symmetry, simulate_spin_dynamics, build_isopropylamine_model,
               fit_isopropylamine_j, fit_isopropylamine_staged, compute_group_averages,
-              fit_frequency_decay, inspect_decay_time_frequency, inspect_repeat_signals, inspect_decay_stability, fit_window_decay, fit_simulated_decay)}
+              fit_frequency_decay, inspect_decay_time_frequency, inspect_repeat_signals, inspect_decay_stability, fit_window_decay, fit_simulated_decay, resample_decay_groups)}
 
 
 def execute(operation, parameters, cancel=lambda: False, progress=lambda n, total: None):

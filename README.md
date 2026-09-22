@@ -25,6 +25,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `inspect_decay_stability` | Refit bounded group means from discovery initializations; separate frozen prediction errors from diagnostic refits. |
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
+| `resample_decay_groups` | Resample discovery-group means with saved circular-block draws, bounded refits and conditional percentile diagnostics. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -158,7 +159,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-22 tools including `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+23 tools including `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -172,6 +173,18 @@ model assumptions, parameter mapping, optimizer and interpretation limits.
 Keep legacy applications available for comparison throughout this transition.
 
 ## Range-restricted relaxation development
+
+`resample_decay_groups` takes a frequency `fit_run_id`, `candidate_index`,
+`draws` (default 100), `block_length` (default 1) and bounded optimizer settings.
+Only parent discovery groups are sampled. Each sampled copy retains its original
+scan-count weight. Circular blocks follow the parent list order, not an inferred
+chronological order. Length 1 assumes group exchangeability; larger blocks
+preserve local dependence in that list. All draws and flagged estimates are
+saved, with independent mode plots. Descriptive 2.5/50/97.5 percentiles require
+all requested draws, at least 20 clean fits and at least 90% clean fits; otherwise
+the summary is suppressed. These thresholds are heuristics, not coverage
+guarantees. Percentiles exclude flagged/mismatched modes and remain conditional
+on model, processing, grouping and that selection; they are not calibrated CIs.
 
 `fit_simulated_decay` takes an existing band `fit_run_id` and a
 `build_isopropylamine_model` `model_run_id`. Optional `source_j_fit_run_id`

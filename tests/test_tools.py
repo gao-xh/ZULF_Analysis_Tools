@@ -91,6 +91,12 @@ class ToolsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
             fit=analysis.execute('fit_frequency_decay',arguments)
+            sampled=analysis.execute('resample_decay_groups',dict(fit_run_id=fit['run_id'],draws=4,settings={'starts':1}))
+            plan=storage.read_json(storage.artifact(sampled['run_id'],'draw_plan.json'))
+            self.assertTrue(all(set(row)<={0,1} for row in plan))
+            self.assertEqual(sampled['untouched_validation_groups'],[2])
+            self.assertEqual(sampled['summary']['completed_draws'],4)
+            self.assertIsNone(sampled['summary']['t2star_percentiles_s'])
             model=analysis.execute('build_isopropylamine_model',{})
             # Isolate transport/provenance and held-out behavior from spin physics,
             # which is checked independently in the simulation/J numerical tests.
@@ -220,7 +226,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('inspect_decay_stability',{tool.name for tool in listed.tools})
                     self.assertIn('fit_window_decay',{tool.name for tool in listed.tools})
                     self.assertIn('fit_simulated_decay',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),22)
+                    self.assertIn('resample_decay_groups',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),23)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())
