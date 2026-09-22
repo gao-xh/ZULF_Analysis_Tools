@@ -143,3 +143,9 @@ for one mode count, preserving bounded multistart optimization. Twelve transport
 and integration tests pass, including invalid/out-of-band/nonfinite seeds and
 frozen validation behavior. Common discovery-derived seeds are being evaluated
 across preprocessing variants; this does not assert a globally optimal fit.
+Milestone 10: `inspect_decay_stability` is available through JSON CLI and MCP.
+It refits explicit group means with discovery-derived frequency starts, retaining
+frozen predictions separately from conditional parameter estimates. Twelve
+integration/transport tests pass, including phase-reversed validation data: a
+good group refit must not erase the bad frozen prediction. Group spread is
+descriptive and does not establish confidence intervals or stable mode identity.

@@ -7,6 +7,21 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def inspect_decay_stability(fit_run_id: str, candidate_index: int = 0,
+                            group_indices: list[int] | None = None,
+                            settings: dict | None = None) -> dict:
+    """Start bounded per-group mean decay refits, defaulting to validation groups.
+    Frequencies initialize from discovery, with original bands/T2* bounds and
+    preprocessing. Returns frozen errors separately from in-sample refits,
+    frequency-matched parameters, raw phase shifts and independent figures.
+    Settings: starts, max_nfev, max_evaluations, max_seconds, total_seconds, seed.
+    Group variation is diagnostic, not a confidence interval or physical assignment.
+    """
+    return jobs.start_analysis('inspect_decay_stability',dict(fit_run_id=fit_run_id,
+        candidate_index=candidate_index,group_indices=group_indices,settings=settings))
+
+
+@mcp.tool()
 def inspect_dataset(folder: str, scan_ids: list[int] | None = None) -> dict:
     """Inspect numbered NMRduino DAT/INI files and sample checks. Source is read-only.
     Reports declared vs decoded points; saves a full manifest locally. For large

@@ -91,6 +91,16 @@ class ToolsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
             fit=analysis.execute('fit_frequency_decay',arguments)
+            stability=analysis.execute('inspect_decay_stability',dict(fit_run_id=fit['run_id'],settings={'starts':2}))
+            self.assertEqual(stability['completed_groups'],1)
+            group=stability['group_fits'][0]
+            self.assertEqual(group['group_index'],2)
+            self.assertEqual(group['group_role'],'validation')
+            self.assertAlmostEqual(group['frozen_relative_complex_residual'],fit['candidates'][0]['validation_relative_complex_residual'],places=10)
+            self.assertLess(group['relative_complex_residual'],.01)
+            self.assertTrue(storage.artifact(stability['run_id'],'stability_arrays.npz').exists())
+            with self.assertRaises(ValueError):
+                analysis.execute('inspect_decay_stability',dict(fit_run_id=fit['run_id'],group_indices=[2,2]))
             diagnostic=analysis.execute('inspect_decay_time_frequency',
                 {'fit_run_id':fit['run_id'],'widths_s':[.25,.5]})
             self.assertEqual(len(diagnostic['window_comparisons']),2)
@@ -190,7 +200,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('fit_frequency_decay',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_decay_time_frequency',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_repeat_signals',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),19)
+                    self.assertIn('inspect_decay_stability',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),20)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

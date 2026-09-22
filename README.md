@@ -22,6 +22,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `fit_frequency_decay` | Fit bounded damped modes on selected complex FFT bands; predict disjoint validation groups with frozen parameters. |
 | `inspect_decay_time_frequency` | Compare a frozen decay candidate through matched Hann windows and anti-aliased complex demodulation. |
 | `inspect_repeat_signals` | Propose peaks on discovery groups, check validation reproducibility, measured accumulation and masked phase. |
+| `inspect_decay_stability` | Refit bounded group means from discovery initializations; separate frozen prediction errors from diagnostic refits. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -155,7 +156,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-19 tools including `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+20 tools including `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -169,6 +170,16 @@ model assumptions, parameter mapping, optimizer and interpretation limits.
 Keep legacy applications available for comparison throughout this transition.
 
 ## Range-restricted relaxation development
+
+`inspect_decay_stability` takes a completed `fit_run_id`, `candidate_index`,
+optional `group_indices` (default: the parent's validation groups), and bounded
+optimizer `settings`. It refits group averages with the parent's preprocessing,
+frequency and T2* bounds, and mode count. Frozen discovery prediction errors
+remain separate from group refit errors. Per-mode T2* and frequency-shift figures
+are independent; raw fitted phase differences are stored without recommending
+phase correction. Frequency matching is only a bookkeeping convention, and
+group spread is not a confidence interval. All refits and numerical warning
+flags are retained, including provisional budget-limited candidates.
 
 For reproducible comparisons with a single requested mode count, pass
 `settings.initial_frequencies_hz` as one list per frequency band, for example
