@@ -35,6 +35,15 @@ class TransitionDecayTests(unittest.TestCase):
         r=fit_transition_decay(p,y,g,[.1,2.],shared_decay=True,starts=3)
         np.testing.assert_allclose(r['t2star_s'],[.7,.7],atol=1e-5)
 
+    def test_expansion_recovers_out_of_range_decay_without_hiding_boundary(self):
+        p,y,g=self.fixture((.07,.7))
+        restricted=fit_transition_decay(p,y,g,[.1,2.],starts=4)
+        self.assertIn(0,restricted['boundary_group_indices'])
+        expanded=fit_transition_decay(p,y,g,[.025,2.],starts=4)
+        np.testing.assert_allclose(expanded['t2star_s'],[.07,.7],atol=1e-5)
+        self.assertFalse(expanded['boundary_group_indices'])
+        self.assertLess(expanded['relative_complex_residual'],restricted['relative_complex_residual']/100)
+
     def test_wrong_transition_structure_remains_bad_even_with_free_decays(self):
         p,y,g=self.fixture()
         g[0]['frequencies_hz']=[38.8,39.9]

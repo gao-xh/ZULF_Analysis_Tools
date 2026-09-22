@@ -8,11 +8,15 @@ from .transition_decay import fit_transition_decay, transition_design
 
 
 def fit_simulated_decay(fit_run_id, model_run_id, shared_decay=False, isotopomers=None,
-                         source_j_fit_run_id=None, settings=None, *, record, directory, cancel, progress):
+                         source_j_fit_run_id=None, settings=None, t2_bounds=None, *, record, directory, cancel, progress):
     from .analysis import recipe, plot
     parent=storage.get_result(fit_run_id);model=storage.get_result(model_run_id)
     if parent['operation']!='fit_frequency_decay' or model['operation']!='build_isopropylamine_model':
         raise ValueError('Require completed frequency-decay and isopropylamine model runs.')
+    decay_bounds=np.asarray(parent['t2_bounds_s'] if t2_bounds is None else t2_bounds,dtype=float)
+    if decay_bounds.shape!=(2,) or not np.isfinite(decay_bounds).all() or not 0<decay_bounds[0]<decay_bounds[1]:
+        raise ValueError('T2* bounds must be two finite increasing positive seconds.')
+    decay_bounds=decay_bounds.tolist()
     if source_j_fit_run_id is not None:
         source_fit=storage.get_result(source_j_fit_run_id)
         if source_fit.get('parameters_hz')!=model['parameters_hz']:
@@ -60,7 +64,7 @@ def fit_simulated_decay(fit_run_id, model_run_id, shared_decay=False, isotopomer
         fig.savefig(directory/f'{name}_transition_sticks.png',dpi=150)
     storage.write_json(directory/'transition_groups.json',groups)
     budgets={k:v for k,v in config.items() if k!='equal_band_weight'}
-    fit=fit_transition_decay(p,observed,groups,parent['t2_bounds_s'],shared_decay=shared_decay,
+    fit=fit_transition_decay(p,observed,groups,decay_bounds,shared_decay=shared_decay,
                              observation_scale=scale,cancel=cancel,**budgets)
     prediction=fit.pop('fitted');progress(1,2)
     def error(a,b):
@@ -87,7 +91,8 @@ def fit_simulated_decay(fit_run_id, model_run_id, shared_decay=False, isotopomer
         parameters_hz=model['parameters_hz'],model_parameter_digest=storage.digest(model['parameters_hz']),
         source_arrays_sha256=source['arrays_sha256'],isotopomers=names,shared_decay=shared_decay,
         discovery_groups=parent['discovery_groups'],validation_groups=parent['validation_groups'],
-        t2_bounds_s=parent['t2_bounds_s'],preprocessing=spec,settings=config,fit=fit,bands=bands,
+        t2_bounds_s=decay_bounds,parent_t2_bounds_s=parent['t2_bounds_s'],t2_bounds_overridden=t2_bounds is not None,
+        preprocessing=spec,settings=config,fit=fit,bands=bands,
         validation_relative_complex_residual=error(held,prediction),scientifically_validated=False,
         warnings=['J and relative transition weights are fixed assumptions, not independently established facts.',
         'If J was estimated from all scans, validation is conditional on that selection, not untouched validation of J.',

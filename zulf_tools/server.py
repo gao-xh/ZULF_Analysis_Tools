@@ -39,9 +39,10 @@ def resample_decay_groups(fit_run_id: str, candidate_index: int = 0, draws: int 
 @mcp.tool()
 def fit_simulated_decay(fit_run_id: str, model_run_id: str, shared_decay: bool = False,
                          isotopomers: list[str] | None = None, source_j_fit_run_id: str | None = None,
-                         settings: dict | None = None) -> dict:
+                         settings: dict | None = None, t2_bounds: list[float] | None = None) -> dict:
     """Start conditional decay-only fitting of complete fixed-J transition groups.
-    Inherits parent band ranges, T2* bounds, preprocessing and group split. Model
+    Inherits parent band ranges, preprocessing and group split. Optional t2_bounds
+    explicitly overrides inherited bounds for bounded sensitivity checks. Model
     comes from build_isopropylamine_model; optional source J fit must match it.
     Defaults to methine+methyl, one phase/gain pair per group, equal band weighting.
     Settings: starts, max_nfev, max_evaluations, max_seconds, seed, equal_band_weight,
@@ -49,7 +50,7 @@ def fit_simulated_decay(fit_run_id: str, model_run_id: str, shared_decay: bool =
     All-scan J estimation makes validation conditional, not an untouched J test.
     """
     return jobs.start_analysis('fit_simulated_decay',dict(fit_run_id=fit_run_id,model_run_id=model_run_id,
-        shared_decay=shared_decay,isotopomers=isotopomers,source_j_fit_run_id=source_j_fit_run_id,settings=settings))
+        shared_decay=shared_decay,isotopomers=isotopomers,source_j_fit_run_id=source_j_fit_run_id,settings=settings,t2_bounds=t2_bounds))
 
 
 @mcp.tool()

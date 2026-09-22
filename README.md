@@ -314,3 +314,11 @@ operational diagnostics, not statistical acceptance tests. Even an
 residual adequacy, interference, model error and mechanism remain separate
 scientific questions. Repeating signal checks with different reference noise
 bands does not provide independent repeat-classification evidence.
+
+
+For fixed-J decay boundary checks, `fit_simulated_decay` accepts optional
+`t2_bounds: [lower_seconds, upper_seconds]`. It inherits bounds when omitted.
+The result records both `parent_t2_bounds_s` and actual `t2_bounds_s`, plus
+`t2_bounds_overridden`. Keep the original run and change bounds explicitly;
+a boundary-free solution is still not evidence of model adequacy. Band ranges,
+source groups, preprocessing and validation remain inherited from the parent.

@@ -105,7 +105,13 @@ class ToolsTests(unittest.TestCase):
             # Isolate transport/provenance and held-out behavior from spin physics,
             # which is checked independently in the simulation/J numerical tests.
             with patch('zulf_tools.simulated_decay.transitions',return_value=(np.array([40.]),np.array([1.]))):
-                simulated=analysis.execute('fit_simulated_decay',dict(fit_run_id=fit['run_id'],model_run_id=model['run_id'],isotopomers=['methine'],settings={'starts':2}))
+                simulated=analysis.execute('fit_simulated_decay',dict(fit_run_id=fit['run_id'],model_run_id=model['run_id'],isotopomers=['methine'],settings={'starts':2},t2_bounds=[.1,3.]))
+            self.assertEqual(simulated['t2_bounds_s'],[.1,3.])
+            self.assertEqual(simulated['parent_t2_bounds_s'],[.2,2.])
+            self.assertTrue(simulated['t2_bounds_overridden'])
+            for invalid in ([0,1],[1,1],[2,1],[.1,float('nan')],[1]):
+                with self.assertRaises(ValueError):
+                    analysis.execute('fit_simulated_decay',dict(fit_run_id=fit['run_id'],model_run_id=model['run_id'],t2_bounds=invalid))
             fit['candidates'][0]['simulated_validation_error']=simulated['validation_relative_complex_residual']
             self.assertTrue(storage.artifact(simulated['run_id'],'transition_groups.json').exists())
             with self.assertRaisesRegex(ValueError,'source fit parameters differ'):
