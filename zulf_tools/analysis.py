@@ -1,6 +1,8 @@
 """Deterministic operations returning manifests and independent figure artifacts."""
 import hashlib
 import math
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
 import matplotlib
@@ -235,12 +237,20 @@ def execute(operation, parameters, cancel=lambda: False, progress=lambda n, tota
     if operation not in OPERATIONS:
         raise ValueError('Unknown analysis operation.')
     record, directory = storage.begin(operation, parameters)
+    started = time.perf_counter()
+    def timing():
+        return dict(execution_wall_seconds=time.perf_counter()-started,
+                    finished_utc=datetime.now(timezone.utc).isoformat(),
+                    timing_scope='Invocation to finalization checkpoint including generated artifacts; excludes queue, imports, initial manifest and final record write. Not CPU time.')
     try:
         result = OPERATIONS[operation](**parameters, record=record, directory=directory, cancel=cancel, progress=progress)
         if cancel():
             raise InterruptedError('Cancelled before result publication.')
+        result.update(timing())
         return storage.complete(record, **result)
     except Exception as exc:
-        record.update(status='cancelled' if isinstance(exc, InterruptedError) else 'failed', error=str(exc))
+        record.update(timing(), status='cancelled' if isinstance(exc, InterruptedError) else 'failed',
+                      error=str(exc), error_type=type(exc).__name__)
+        record['artifacts'] = [str(p.resolve()) for p in sorted(directory.iterdir()) if p.is_file()]
         storage.write_json(directory/'result.json', record)
         raise

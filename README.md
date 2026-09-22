@@ -556,3 +556,13 @@ It does not directly count substances or relaxation mechanisms. Neither a
 four-frequency fit nor a small conditional resampling spread proves four
 physical decay components. Independent repeat support, frozen residual checks,
 processing sensitivity and an appropriate forward model remain necessary.
+
+
+Every new operation executed through CLI/MCP records `execution_wall_seconds`,
+`finished_utc` and `timing_scope`, including failed and cancelled analyses. This
+measures invocation through its finalization checkpoint, including generated
+plots; it excludes queue wait, imports, initial manifest and final result write.
+Existing operation-specific `elapsed_s` and solver timings remain separate.
+Older records are not backfilled from file timestamps or treated as zero-cost.
+Failed/cancelled records also index their surviving partial artifacts and retain
+the exception type. They remain unavailable through the completed-result API.
