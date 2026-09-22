@@ -140,5 +140,8 @@ screen cannot validate preparation weights, J values, or intrinsic T2.
 Four tests independently construct sampled weighted real FIDs, apply mirror SG,
 and check separate/shared decay and phase recovery. A deliberately shifted
 transition set retains substantial residual despite free decay times. Budget,
-boundary and invalid-weight cases are tested. CLI/MCP integration and comparisons
-of the preserved experimental J candidates are the next unfinished step.
+boundary and invalid-weight cases are tested. `fit_simulated_decay` exposes the
+core through CLI/MCP, verifies optional J-source parameter equality and keeps
+complete simulated transition support. A transport fixture with controlled
+transitions tests phase-reversed validation separately from the spin-physics
+numerical tests. Experimental acceptance remains conditional on J and preparation.

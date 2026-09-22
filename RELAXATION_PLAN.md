@@ -166,3 +166,9 @@ tests. The model shares one gain/phase pair across each supplied weighted group,
 fits bounded shared/separate T2*, preserves all transition support and exposes
 budget/boundary/conditioning diagnostics. Experimental fixed-J tool integration
 remains open, including conditional-validation provenance for historical J fits.
+Milestone 14: fixed-J decay tool is available through CLI/MCP with source-model
+parameter verification, all-transition sticks and conditional held-out errors.
+Twelve integration/transport tests pass, including an explicit controlled
+transition fixture for phase-reversed validation and mismatched J provenance.
+The separate spin-physics and decay-core tests support the numerical components;
+historical all-scan J fits must not be called untouched validation priors.

@@ -91,6 +91,15 @@ class ToolsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
             fit=analysis.execute('fit_frequency_decay',arguments)
+            model=analysis.execute('build_isopropylamine_model',{})
+            # Isolate transport/provenance and held-out behavior from spin physics,
+            # which is checked independently in the simulation/J numerical tests.
+            with patch('zulf_tools.simulated_decay.transitions',return_value=(np.array([40.]),np.array([1.]))):
+                simulated=analysis.execute('fit_simulated_decay',dict(fit_run_id=fit['run_id'],model_run_id=model['run_id'],isotopomers=['methine'],settings={'starts':2}))
+            fit['candidates'][0]['simulated_validation_error']=simulated['validation_relative_complex_residual']
+            self.assertTrue(storage.artifact(simulated['run_id'],'transition_groups.json').exists())
+            with self.assertRaisesRegex(ValueError,'source fit parameters differ'):
+                analysis.execute('fit_simulated_decay',dict(fit_run_id=fit['run_id'],model_run_id=model['run_id'],source_j_fit_run_id=fit['run_id']))
             windowed=analysis.execute('fit_window_decay',dict(fit_run_id=fit['run_id'],width_s=.25,hop_s=.125,settings={'starts':2}))
             self.assertTrue(storage.artifact(windowed['run_id'],'window_fit_arrays.npz').exists())
             self.assertEqual(windowed['validation_groups'],[2])
@@ -124,6 +133,8 @@ class ToolsTests(unittest.TestCase):
         self.assertGreater(reversed_phase['validation_relative_complex_residual'],1.9)
         self.assertLess(original['window_validation_error'],.01)
         self.assertGreater(reversed_phase['window_validation_error'],1.9)
+        self.assertLess(original['simulated_validation_error'],.01)
+        self.assertGreater(reversed_phase['simulated_validation_error'],1.9)
         self.assertLess(reversed_phase['validation_group_errors'][0]['conditional_gain_relative_complex_residual'],.01)
 
     def test_repeat_signal_operation_proposes_on_discovery_only(self):
@@ -208,7 +219,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('inspect_repeat_signals',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_decay_stability',{tool.name for tool in listed.tools})
                     self.assertIn('fit_window_decay',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),21)
+                    self.assertIn('fit_simulated_decay',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),22)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

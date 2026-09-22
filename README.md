@@ -24,6 +24,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `inspect_repeat_signals` | Propose peaks on discovery groups, check validation reproducibility, measured accumulation and masked phase. |
 | `inspect_decay_stability` | Refit bounded group means from discovery initializations; separate frozen prediction errors from diagnostic refits. |
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
+| `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -157,7 +158,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-21 tools including `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+22 tools including `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -171,6 +172,18 @@ model assumptions, parameter mapping, optimizer and interpretation limits.
 Keep legacy applications available for comparison throughout this transition.
 
 ## Range-restricted relaxation development
+
+`fit_simulated_decay` takes an existing band `fit_run_id` and a
+`build_isopropylamine_model` `model_run_id`. Optional `source_j_fit_run_id`
+must contain identical J parameters. It compares `shared_decay: true/false`
+in separate calls, using `isotopomers: ["methine", "methyl"]` by default.
+All simulated transitions are retained, including those outside observed bands;
+one phase/gain pair applies to each isotopomer. Bounds, preprocessing and group
+splits come from the parent. Equal band RMS weighting is explicit and enabled
+by default. Settings also expose start/evaluation/time limits. Result artifacts
+include transition sticks, component plots, real/imaginary residuals and model
+provenance. Historical J fits using all scans do not provide an untouched
+validation prior. Unknown preparation weights remain a model assumption.
 
 `fit_window_decay` takes a parent FFT `fit_run_id` and `candidate_index`, with
 `width_s`, `hop_s`, optional `sample_frequencies_hz`, and optimizer `settings`.
