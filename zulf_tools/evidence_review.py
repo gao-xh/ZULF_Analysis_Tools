@@ -80,8 +80,8 @@ def review_decay_evidence(fit_run_id, candidate_index=0, signal_run_ids=None,
             idx=ref.get('candidate_index')
             if type(idx) is not int or not 0<=idx<len(other['candidates']): raise ValueError('Invalid comparison candidate.')
             c=other['candidates'][idx]
-        elif other['operation']=='fit_window_decay': c=other['fit']
-        else: raise ValueError('Comparison must be an FFT or window decay fit.')
+        elif other['operation'] in ('fit_window_decay','fit_demodulated_decay'): c=other['fit']
+        else: raise ValueError('Comparison must be an FFT, window or demodulated decay fit.')
         if len(c['frequencies_hz'])!=len(freq): raise ValueError('Comparison mode counts must match explicitly.')
         cost=abs(freq[:,None]-np.array(c['frequencies_hz'])[None,:]);a,b=linear_sum_assignment(cost)
         for i,j in zip(a,b):

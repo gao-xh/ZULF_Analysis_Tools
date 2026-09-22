@@ -7,6 +7,19 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def fit_demodulated_decay(fit_run_id: str, candidate_index: int = 0, transition_hz: float | None = None,
+                          attenuation_db: float = 80., edge_policy: str = 'matched_all', settings: dict | None = None) -> dict:
+    """Refit a bounded FFT candidate through matched complex demodulation.
+    edge_policy: matched_all explicitly models finite-record filter edges;
+    interior excludes them and may lose fast decay. Inherits source groups,
+    processing, frequency/T2* bounds and mode count; freezes validation.
+    Settings: starts, max_nfev, max_evaluations, max_seconds, seed.
+    """
+    return jobs.start_analysis('fit_demodulated_decay',dict(fit_run_id=fit_run_id,candidate_index=candidate_index,
+        transition_hz=transition_hz,attenuation_db=attenuation_db,edge_policy=edge_policy,settings=settings))
+
+
+@mcp.tool()
 def inspect_fid_crops(group_run_id: str, ranges: list[list[float]], discovery_groups: list[int],
                       validation_groups: list[int], sg_window: int = 0, sg_order: int = 2,
                       width_s: float = .25, snr_threshold: float = 5., early_block_s: float = .005,

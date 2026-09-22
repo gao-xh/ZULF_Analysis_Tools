@@ -23,6 +23,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `inspect_decay_time_frequency` | Compare a frozen decay candidate through matched Hann windows and anti-aliased complex demodulation. |
 | `inspect_repeat_signals` | Propose peaks on discovery groups, check validation reproducibility, measured accumulation and masked phase. |
 | `inspect_decay_stability` | Refit bounded group means from discovery initializations; separate frozen prediction errors from diagnostic refits. |
+| `fit_demodulated_decay` | Fit bounded oscillatory modes through matched complex FIR demodulation, with explicit edge policy and frozen validation. |
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
 | `resample_decay_groups` | Resample discovery-group means with saved circular-block draws, bounded refits and conditional percentile diagnostics. |
@@ -161,7 +162,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-25 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+26 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -368,3 +369,32 @@ thresholds. `early_amplitude_thresholds.png` and `candidate_start_zoom.png`
 show this decision. Ratios and reference intervals are explicit heuristics:
 large early amplitude can itself include fast molecular signal. They cannot
 prove an artifact-free crop, so alternative fits must still be compared.
+
+
+## Matched demodulated-time fitting
+
+`fit_demodulated_decay` inherits an FFT `fit_run_id` and `candidate_index`,
+frequency and T2* bounds, mode count, shared/independent decay, acquisition groups
+and processing. It accepts `transition_hz`, `attenuation_db` (default 80),
+`edge_policy` and bounded `settings` (starts, max_nfev, max_evaluations,
+max_seconds, seed). Explicit discovery FFT initial frequencies are used.
+
+The model creates real full-record damped quadratures at acquisition time,
+subtracts the same full-record SG baseline, crops and removes the retained mean
+as configured, then mixes, convolves with the cached Kaiser FIR and decimates.
+Anti-alias settings match the diagnostic demodulator. Filter transitions admit
+outside-band contributions, so target-band-only models can be incomplete.
+
+`matched_all` (default) includes zero-extension-affected samples and models the
+same finite-record operation exactly. `interior` uses only samples unaffected
+by zero extension, potentially losing most of a fast decay. This distinction
+is explicit in the `filter` manifest and `filter_masks.png`; neither policy
+invents pre-crop observations. All-sample predictions are plotted even for an
+interior-only fit. Full/early magnitude, real and imaginary figures, residuals,
+arrays and an original FFT cross-check are independent artifacts. The fitted
+coefficients are frozen for validation. Filtered samples are correlated and
+are not treated as independent observations for uncertainty estimates.
+
+`review_decay_evidence` accepts these runs as explicit sensitivity comparisons
+alongside window and FFT fits. Smaller demodulated residuals are not sufficient
+to establish decay identifiability or a physical component.
