@@ -78,6 +78,39 @@ being investigated. Also run an unrestricted-width control on the same bins.
 
 ## Scope and parameter mapping
 
+### Independent methyl low/high effective widths
+
+The ordinary `fit_isopropylamine_j` tool accepts `settings.methyl_split_hz`
+(for example 190 Hz between the 110-150 and 230-275 Hz fitting bands).
+Default `null` preserves the original common methyl rate. With a split, use
+`methyl_low` and `methyl_high` instead of `methyl` in `initial_rates`,
+`fixed_rates` and `rate_bounds_by_isotopomer`. Methine remains unchanged.
+The split must lie in an unfitted gap with observed bands on both sides.
+
+This is an empirical partition by Hamiltonian transition frequency, not an
+exact assignment of symmetry sectors. Every transition below the threshold
+uses the low rate; every transition at or above it uses the high rate.
+Global thermal weights and one common methyl cosine/sine gain pair are retained.
+Each decaying family contributes to ALL observed bins through the same full-FID
+processing, including spectral tails; spectra are never spliced at the split.
+Equal low/high rates recover the common-rate model. The staged tool retains its
+existing common-rate workflow; split rates are currently an ordinary-fit option.
+
+Each ordinary fit additionally saves `fit_with_positions_range_N.png`: broadened
+experiment/model/component curves with colored ticks at every unbroadened
+Hamiltonian transition. Tick heights encode relative theoretical weights, not
+experimental amplitude; the strongest three per isotopomer receive labels.
+Exact positions remain in `transitions.json`. These positions need not coincide
+with maxima of overlapping, processed magnitude spectra.
+
+Motivation: [Barskiy et al., Nature Communications (2019)](https://www.nature.com/articles/s41467-019-10787-9)
+demonstrates differential J/2J linewidths in an A3X example;
+[Teleanu et al., preprint, Supplement IV-V](https://arxiv.org/html/2511.08517v1)
+distinguishes acquisition coherence decay from storage relaxation. Neither
+source supplies calibrated rates for this neat isopropylamine dataset.
+Independent effective widths are a hypothesis to compare with a common-rate
+control, not evidence of two substances or a microscopic relaxation mechanism.
+
 This is a pure, natural-abundance isopropylamine **carbon-bound proton skeleton**
 approximation, not a full nitrogen/amine/exchange model. Each isotopomer includes
 seven carbon-bound protons and one 13C. Both methyl groups contain three equivalent

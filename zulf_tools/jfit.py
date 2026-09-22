@@ -177,6 +177,21 @@ class ProcessedSpectrum:
         return spectrum
 
 
+def split_rate_templates(processor, frequencies, weights, low_rate, high_rate, split_hz):
+    """Empirical transition-frequency partition; preserve global thermal weights.
+
+    Both groups contribute at every observed bin, including their tails. This
+    is not an assignment of exact symmetry quantum numbers or separate gains.
+    """
+    f,w=np.asarray(frequencies),np.asarray(weights)
+    total=max(w.sum(),1e-30)
+    result=np.zeros((len(processor.f),2),complex)
+    for mask,rate in ((f<split_hz,low_rate),(f>=split_hz,high_rate)):
+        if np.any(mask):
+            result += (w[mask].sum()/total)*processor.templates(f[mask],w[mask],rate)
+    return result
+
+
 def build_isopropylamine_model(parameters=None, *,record,directory,cancel,progress):
     p = dict(DEFAULT,**(parameters or {}))
     if set(p) != set(NAMES) or not np.isfinite(list(p.values())).all(): raise ValueError('Unknown or nonfinite J parameters.')
@@ -198,16 +213,21 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
              starts=8,max_nfev=80,screening_samples=128,seed=20260922,bin_stride=2,
              rate_bounds=[.3,40.],initial_rate=4.,objective='complex',
              isotopomers=['methine','methyl'],fixed_rates={},initial_rates={},rate_bounds_by_isotopomer={},
-             diff_step=1e-4)
+             diff_step=1e-4,methyl_split_hz=None)
     settings = settings or {}
     if set(settings)-set(s): raise ValueError('Unknown fitting settings.')
     s.update(settings)
     if s['objective'] not in ('complex','magnitude'): raise ValueError('objective must be complex or magnitude.')
     active=s['isotopomers']; fixed_rates=s['fixed_rates']
     if not isinstance(active,list) or not active or len(set(active))!=len(active) or any(k not in ('methine','methyl') for k in active): raise ValueError('Invalid isotopomers.')
-    if not isinstance(fixed_rates,dict) or any(k not in active or not np.isfinite(v) or v<=0 for k,v in fixed_rates.items()): raise ValueError('Invalid fixed_rates.')
-    rate_names=[k for k in ('methine','methyl') if k in active and k not in fixed_rates]
-    if not isinstance(s['initial_rates'],dict) or set(s['initial_rates'])-set(active) or not isinstance(s['rate_bounds_by_isotopomer'],dict) or set(s['rate_bounds_by_isotopomer'])-set(active): raise ValueError('Invalid isotope rate settings.')
+    split=s['methyl_split_hz']
+    if split is not None and (isinstance(split,bool) or not isinstance(split,(int,float)) or not np.isfinite(split) or split<=0 or 'methyl' not in active):
+        raise ValueError('methyl_split_hz must be a positive finite frequency with methyl active.')
+    rate_keys=[k for k in ('methine','methyl') if k in active]
+    if split is not None: rate_keys=([k for k in rate_keys if k!='methyl']+['methyl_low','methyl_high'])
+    if not isinstance(fixed_rates,dict) or any(k not in rate_keys or not np.isfinite(v) or v<=0 for k,v in fixed_rates.items()): raise ValueError('Invalid fixed_rates.')
+    rate_names=[k for k in rate_keys if k not in fixed_rates]
+    if not isinstance(s['initial_rates'],dict) or set(s['initial_rates'])-set(rate_keys) or not isinstance(s['rate_bounds_by_isotopomer'],dict) or set(s['rate_bounds_by_isotopomer'])-set(rate_keys): raise ValueError('Invalid isotope rate settings.')
     if not np.isfinite(s['diff_step']) or not 1e-7<=s['diff_step']<=.01: raise ValueError('Invalid finite difference step.')
     initial = dict(DEFAULT,**s['initial']); bounds = dict(BOUNDS,**s['bounds'])
     free = s['free_parameters']
@@ -222,9 +242,9 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
         if type(s[key]) is not int or not lo<=s[key]<=hi: raise ValueError('Invalid '+key)
     rb = s['rate_bounds']
     if len(rb)!=2 or not np.isfinite(rb).all() or not 0<rb[0]<rb[1] or not rb[0]<=s['initial_rate']<=rb[1]: raise ValueError('Invalid decay-rate bounds.')
-    rate_bounds={k:s['rate_bounds_by_isotopomer'].get(k,rb) for k in active}
-    rate_initial={k:s['initial_rates'].get(k,s['initial_rate']) for k in active}
-    for k in active:
+    rate_bounds={k:s['rate_bounds_by_isotopomer'].get(k,rb) for k in rate_keys}
+    rate_initial={k:s['initial_rates'].get(k,s['initial_rate']) for k in rate_keys}
+    for k in rate_keys:
         b=rate_bounds[k]
         if len(b)!=2 or not np.isfinite(b).all() or not 0<b[0]<b[1] or not np.isfinite(rate_initial[k]) or not b[0]<=rate_initial[k]<=b[1]: raise ValueError('Invalid isotope rate bounds/initial: '+k)
     parent = storage.get_result(comparison_run_id)
@@ -236,6 +256,8 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     if not isinstance(ranges,list) or not 1<=len(ranges)<=6: raise ValueError('Provide 1..6 frequency ranges.')
     for i,b in enumerate(ranges):
         if len(b)!=2 or not np.isfinite(b).all() or not 0<b[0]<b[1]<fs/2 or (i and b[0]<=ranges[i-1][1]): raise ValueError('Ranges must be sorted, disjoint, positive and below Nyquist.')
+    if split is not None and not (any(b[1]<split for b in ranges) and any(b[0]>split for b in ranges) and all(not b[0]<=split<=b[1] for b in ranges)):
+        raise ValueError('Methyl split must lie in an unfitted gap with observed bands on both sides.')
     with np.load(path,allow_pickle=False) as arrays: full_f=arrays['frequency']; full_y=arrays['spectrum']
     indices=[]; memberships=[]
     for i,(lo,hi) in enumerate(ranges):
@@ -263,7 +285,10 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
                 cols.extend([np.zeros(len(f),complex)]*2)
                 continue
             freq,weight=transitions(p,name)
-            cols.extend(processor.templates(freq,weight,rates_for(x)[name]).T)
+            rates=rates_for(x)
+            template=(split_rate_templates(processor,freq,weight,rates['methyl_low'],rates['methyl_high'],split)
+                      if name=='methyl' and split is not None else processor.templates(freq,weight,rates[name]))
+            cols.extend(template.T)
         # Independent real cosine/sine gains, summed before magnitude. Isotopic
         # number weights are absorbed by unknown response amplitudes, not inferred.
         for i in range(len(ranges)):
@@ -353,6 +378,30 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
                    title=f'{kind}: unbroadened transitions (not experimental intensities)')
             fig.savefig(directory/f'{kind}_sticks_range_{i}.png',dpi=150)
     storage.write_json(directory/'transitions.json',transition_records)
+    # Mark Hamiltonian transition frequencies, not maxima of broadened curves.
+    for i,(lo,hi) in enumerate(ranges):
+        mask=membership==i
+        fig=Figure(figsize=(11,6.3),layout='constrained'); ax=fig.add_subplot(111)
+        ax.plot(f[mask],abs(y[mask]),color='.55',lw=.9,label='Experiment')
+        ax.plot(f[mask],abs(fitted[mask]),color='black',lw=1.4,label='Total model')
+        for kind,color,offset,j in [('methine','#D55E00',.025,0),('methyl','#0072B2',.115,2)]:
+            if kind not in active: continue
+            ax.plot(f[mask],abs((design[:,j:j+2]@coef[j:j+2])[mask]),color=color,lw=1.1,label=kind.title())
+            tr=transition_records[kind]; tf=np.asarray(tr['frequency_hz']);tw=np.asarray(tr['relative_weights'])
+            keep=(tf>=lo)&(tf<=hi)
+            if np.any(keep):
+                height=.07*tw[keep]/max(tw[keep].max(),1e-30)
+                ax.vlines(tf[keep],offset,offset+height,transform=ax.get_xaxis_transform(),color=color,lw=1,
+                          label=kind.title()+' unbroadened positions')
+                # Label strongest three positions; retain every position as a tick and in JSON.
+                ids=np.flatnonzero(keep); ids=ids[np.argsort(tw[ids])[-3:]]
+                for k,n in enumerate(ids):
+                    ax.annotate(f'{tf[n]:.3f}',xy=(tf[n],offset+.07),xycoords=ax.get_xaxis_transform(),
+                                xytext=(0,5+11*k),textcoords='offset points',fontsize=7,color=color,ha='center')
+        ax.set(xlim=(lo,hi),xlabel='Frequency (Hz)',ylabel='Magnitude (ADC units)',title=f'J simulation and unbroadened transition positions: {lo:g}-{hi:g} Hz')
+        ax.grid(alpha=.2);ax.legend(fontsize=8,ncol=2)
+        fig.supxlabel('Colored ticks: Hamiltonian transitions; heights show relative weights, not measured intensity.\nComponent magnitudes do not add. '+('Separate methyl low/high effective rates.' if split is not None else 'One effective rate per isotopomer.'),fontsize=8)
+        fig.savefig(directory/f'fit_with_positions_range_{i}.png',dpi=160)
     np.savez_compressed(directory/'fit_arrays.npz',frequency_hz=f,experiment=y,fitted=fitted,residual=y-fitted,
                         methine=design[:,:2]@coef[:2],methyl=design[:,2:4]@coef[2:4],membership=membership)
     for name in ('methine','methyl'): storage.write_json(directory/f'{name}_model.json',model_for(p,name))
@@ -388,6 +437,8 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
                 'Natural-abundance 1:2 molecule counts are absorbed into unknown response gains; amplitudes do not measure abundance.',
                 'Only requested bands are fitted; no claim of validation outside them.']}
     if boundary: report['warnings'].append('Some J parameters reached search boundaries; widen/review the model before interpretation.')
+    if split is not None:
+        report['warnings'].append('Methyl rates are split empirically by transition frequency, not exact symmetry sectors or established physical relaxation mechanisms. One common methyl gain/phase and global thermal weights are retained.')
     if not best.success: report['warnings'].append('Best local optimization exhausted its budget or did not converge.')
     if s['objective']=='magnitude': report['warnings'].append('Magnitude fitting discards observed phase and has noise bias; the complex residual is diagnostic, not its optimized objective.')
     if len(near)>1: report['warnings'].append('Multiple candidate starts are within 10% of the best objective; inspect their parameter differences before selecting a J set.')

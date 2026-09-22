@@ -9,6 +9,39 @@ from zulf_tools.analysis import recipe,execute
 
 
 class JFitTests(unittest.TestCase):
+    def test_split_rates_match_independent_full_fid_and_equal_rate_limit(self):
+        fs=800.;n=1600;t=np.arange(n)/fs
+        f=np.array([121.3,125.7,248.2,253.6]);w=np.array([1.,2.,4.,6.])
+        rates=np.array([1.2,1.2,6.,6.]);bins=np.arange(1,650,3)
+        op=jfit.ProcessedSpectrum(fs,n,80,1480,bins,101,2)
+        got=jfit.split_rate_templates(op,f,w,1.2,6.,190.)
+        for k,fn in enumerate((np.cos,np.sin)):
+            fid=(fn(2*np.pi*t[:,None]*f)*np.exp(-t[:,None]*rates))@(w/w.sum())
+            processed,_,_=recipe(fid,fs,{'start_s':.1,'end_s':1.85,'sg_window':101})
+            np.testing.assert_allclose(got[:,k],np.fft.rfft(processed)[bins]/len(processed),atol=1e-12)
+        np.testing.assert_allclose(jfit.split_rate_templates(op,f,w,3.,3.,190.),op.templates(f,w,3.),atol=1e-12)
+
+    def test_split_methyl_rate_recovery(self):
+        fs=800.;n=2400;t=np.arange(n)/fs;truth=dict(jfit.DEFAULT)
+        f,w=jfit.transitions(truth,'methyl');rates=np.where(f<190.,1.2,5.)
+        fid=(np.cos(2*np.pi*t[:,None]*f+.3)*np.exp(-t[:,None]*rates))@(w/w.sum())
+        with tempfile.TemporaryDirectory() as tmp,patch.object(storage,'ROOT',Path(tmp)):
+            rec,d=storage.begin('compute_average',{});np.save(d/'average.npy',fid)
+            import hashlib
+            storage.complete(rec,points=n,sampling_rate_hz=fs,average_sha256=hashlib.sha256((d/'average.npy').read_bytes()).hexdigest())
+            parent=execute('compare_preprocessing',{'average_run_id':rec['run_id'],'variants':[{'start_s':.1,'sg_window':101}]})
+            args=dict(comparison_run_id=parent['run_id'],variant_index=0,ranges=[[110,150],[230,275]],settings=dict(
+                isotopomers=['methyl'],methyl_split_hz=190.,initial=truth,free_parameters=['J_CH_methyl'],
+                initial_rates={'methyl_low':2.,'methyl_high':3.},starts=1,screening_samples=0,max_nfev=40,bin_stride=2))
+            r=execute('fit_isopropylamine_j',args)
+            self.assertTrue(r['optimizer_success'])
+            self.assertLess(r['relative_complex_residual'],1e-5)
+            self.assertAlmostEqual(r['decay_rates_per_s']['methyl_low'],1.2,places=3)
+            self.assertAlmostEqual(r['decay_rates_per_s']['methyl_high'],5.,places=3)
+            self.assertTrue(storage.artifact(r['run_id'],'fit_with_positions_range_0.png').exists())
+            args['settings']['methyl_split_hz']=125.
+            with self.assertRaisesRegex(ValueError,'unfitted gap'):execute('fit_isopropylamine_j',args)
+
     def test_exact_processed_modes_against_sampled_fft(self):
         fs=1000.; n=1800; freq=np.array([124.17,132.86]); w=np.array([.3,.7]); rate=1.6
         t=np.arange(n)/fs
