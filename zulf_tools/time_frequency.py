@@ -145,6 +145,9 @@ def inspect_decay_time_frequency(fit_run_id, candidate_index=0, widths_s=None,
     demod={label:demodulate_band(values,fs,band,time_origin_s=origin)
            for label,values in dict(observed,prediction=predicted).items()}
     ref=demod['prediction']; t=ref['times_s']; interior=ref['valid_interior']
+    end=origin+len(predicted)/fs
+    edge=ref['edge_duration_s']
+    edge_ranges=[(origin,end)] if 2*edge>=end-origin else [(origin,origin+edge),(end-edge,end)]
     arrays['demod_times_s']=t;arrays['demod_valid_interior']=interior
     arrays['demod_fir_coefficients']=ref['fir_coefficients']
     for label,tr in demod.items():
@@ -152,7 +155,11 @@ def inspect_decay_time_frequency(fit_run_id, candidate_index=0, widths_s=None,
     for part,transform in [('real',np.real),('imaginary',np.imag),('magnitude',np.abs)]:
         plot(directory/f'demodulated_{part}.png',[(t,transform(tr['signal']),label.title()) for label,tr in demod.items()],
              'Recorded time (s)',part.title()+' (ADC units)',
-             f'Demodulated {band[0]:g}-{band[1]:g} Hz; edge duration {ref["edge_duration_s"]:.3g} s')
+             f'Demodulated {band[0]:g}-{band[1]:g} Hz; edge duration {ref["edge_duration_s"]:.3g} s',
+             shaded_ranges=edge_ranges)
+    plot(directory/'demodulated_interior_mask.png',[(t,interior.astype(int),'Unaffected by zero extension')],
+         'Recorded time (s)','Interior mask (0 or 1)','Samples used in the interior residual metric',
+         shaded_ranges=edge_ranges)
     norm=float(np.linalg.norm(demod['validation']['signal'][interior]))
     err=float(np.linalg.norm((demod['validation']['signal']-ref['signal'])[interior])/norm) if norm else None
     np.savez_compressed(directory/'time_frequency_arrays.npz',**arrays)

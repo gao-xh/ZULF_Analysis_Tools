@@ -12,15 +12,18 @@ from scipy.signal import savgol_filter, find_peaks
 from . import data, storage
 
 
-def plot(path, traces, xlabel, ylabel, title):
+def plot(path, traces, xlabel, ylabel, title, *, shaded_ranges=()):
     fig = Figure(figsize=(10, 4.6), layout='constrained')
     ax = fig.add_subplot(111)
     for x, y, label in traces:
         ax.plot(x, y, linewidth=.8, label=label)
+    for i,(left,right) in enumerate(shaded_ranges):
+        ax.axvspan(left,right,color='gray',alpha=.16,
+                   label='Zero-extension-affected interval' if i==0 else None)
     ax.set(xlabel=xlabel, ylabel=ylabel, title=title)
     ax.ticklabel_format(axis='y', style='sci', scilimits=(-3, 4), useOffset=False)
     ax.grid(alpha=.2)
-    if len(traces) > 1:
+    if len(traces) > 1 or shaded_ranges:
         ax.legend(fontsize=8)
     fig.savefig(path, dpi=150)
 

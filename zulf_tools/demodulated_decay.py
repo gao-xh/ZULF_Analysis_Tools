@@ -101,13 +101,19 @@ def fit_demodulated_decay(fit_run_id,candidate_index=0,transition_hz=None,
     fit['validation_relative_complex_residual']=error(observations['validation'][op.selected],prediction)
     arrays=dict(times_s=op.all_times_s,valid_interior=op.valid_interior,fit_sample_mask=op.selected,
         fir_coefficients=op.fir,**observations)
+    start=op.first/op.fs;end=op.last/op.fs;edge=op.metadata['edge_duration_s']
+    edge_ranges=[(start,end)] if 2*edge>=end-start else [(start,start+edge),(end-edge,end)]
     for part,transform in [('magnitude',np.abs),('real',np.real),('imaginary',np.imag)]:
         for view,mask in [('full',np.ones(len(op.all_times_s),bool)),('early',op.all_times_s<=op.all_times_s[0]+1.)]:
+            left,right=op.all_times_s[mask][[0,-1]]
+            spans=[(max(a,left),min(b,right)) for a,b in edge_ranges if max(a,left)<min(b,right)]
             plot(directory/f'{view}_{part}.png',[(op.all_times_s[mask],transform(y[mask]),role) for role,y in observations.items()],
-                'Acquisition time (s)',part.title()+' (ADC units)',f'{bounds[0]:g}-{bounds[1]:g} Hz demodulation; {edge_policy}')
+                'Acquisition time (s)',part.title()+' (ADC units)',f'{bounds[0]:g}-{bounds[1]:g} Hz demodulation; {edge_policy}',
+                shaded_ranges=spans)
     residual=observations['validation']-observations['fitted']
     plot(directory/'residual.png',[(op.all_times_s,residual.real,'Real'),(op.all_times_s,residual.imag,'Imaginary')],
-        'Acquisition time (s)','Complex residual (ADC units)','Frozen validation residual; all filter samples shown')
+        'Acquisition time (s)','Complex residual (ADC units)','Frozen validation residual; all filter samples shown',
+        shaded_ranges=edge_ranges)
     plot(directory/'filter_masks.png',[(op.all_times_s,op.valid_interior.astype(int),'Uncontaminated by zero extension'),
         (op.all_times_s,op.selected.astype(int),'Used in fit')],'Acquisition time (s)','Mask (0 or 1)','Filter edge coverage')
     frequency=np.fft.rfftfreq(op.n,1/op.fs);mask=(frequency>=bounds[0])&(frequency<=bounds[1])

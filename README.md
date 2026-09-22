@@ -286,6 +286,12 @@ figures, with acquisition-referenced phase and the same frozen prediction.
 These retain signed disagreement hidden by magnitude plots; they are Fourier
 components of the measured real FID, not independently acquired quadratures.
 No phase alignment or correction is applied by this diagnostic.
+Demodulation figures shade zero-extension-affected intervals and the diagnostic
+exports a separate interior mask figure. Shading is filter support, not a detected
+physical transient or an automatic crop recommendation. Matched-all refits can
+use shaded samples because the same finite-record filter is applied to their
+predictions; interior-only metrics exclude them. Early refit views retain their
+own time limits rather than expanding to show the distant record boundary.
 
 `inspect_repeat_signals` requires explicit `ranges`, nonoverlapping reference
 `noise_ranges`, and at least two disjoint groups in each discovery/validation
