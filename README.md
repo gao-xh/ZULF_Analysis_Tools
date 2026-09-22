@@ -566,3 +566,25 @@ Existing operation-specific `elapsed_s` and solver timings remain separate.
 Older records are not backfilled from file timestamps or treated as zero-cost.
 Failed/cancelled records also index their surviving partial artifacts and retain
 the exception type. They remain unavailable through the completed-result API.
+
+
+Out-of-band leakage can be reproduced with:
+
+```powershell
+.venv/Scripts/python.exe -m examples.validate_leakage
+```
+
+Selecting FFT bins does not remove the finite-record tails of oscillators
+outside those bins. This synthetic example contrasts omission, a constant
+complex background and an explicitly wider fit containing the neighboring
+oscillator. The background can lower spectral residual while increasing decay
+bias. The wider known-model fit recovers the synthetic truth; arbitrary band
+expansion in experimental data is not automatically valid or necessary.
+
+Use discovery evidence to motivate a small, recorded guard-band comparison,
+with a fixed compute budget. Compare target parameter stability and frozen
+validation, not residuals with different denominators alone. A spectral constant
+is a nuisance approximation, not a unique full-FID component: matched window,
+demodulated refits and magnitude-objective comparison reject such parents;
+time-frequency inspection explicitly omits that background from its limited
+oscillator prediction. The background remains disabled by default.
