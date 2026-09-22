@@ -101,6 +101,34 @@ def spectral_coherence(spectra,counts,reference,single_scan_variance,threshold=5
         note='Descriptive coherence includes noise, phase and spectral-shape differences. No alignment or independent-bin significance claim.')
 
 
+def directional_residual_diagnostic(discovery_residual, validation_residuals, counts, threshold=3.):
+    """Freeze discovery's direction, then estimate scatter of validation projections.
+
+    Projection occurs before estimating scatter, retaining correlations among
+    frequency bins. This is descriptive, not a calibrated hypothesis test.
+    """
+    direction = np.asarray(discovery_residual, complex)
+    validation = np.asarray(validation_residuals, complex)
+    stats = weighted_repeat_statistics(validation, counts)
+    if direction.shape != stats['mean'].shape or not np.isfinite(direction).all() or not np.isfinite(threshold) or threshold <= 0:
+        raise ValueError('Invalid discovery residual or threshold.')
+    norm = float(np.linalg.norm(direction))
+    floor = np.finfo(float).eps*max(norm, float(np.linalg.norm(stats['mean'])), 1.)*100
+    if norm <= floor:
+        return dict(available=False, requires_review=False, status='no_discovery_direction')
+    projection = (validation @ (direction/norm).conj()).real
+    projected = weighted_repeat_statistics(projection[:, None], counts)
+    mean = float(projected['mean'][0].real)
+    sem = float(projected['standard_error'][0])
+    return dict(available=bool(sem > floor), requires_review=bool(mean > threshold*max(sem, floor)),
+        status='measured' if sem > floor else 'zero_projection_scatter',
+        validation_projection_mean=mean, validation_projection_sem=sem,
+        signed_projection_to_sem=mean/sem if sem > floor else None,
+        validation_group_projections=projection.tolist(), ratio_threshold=threshold,
+        direction_selected_on='discovery_residual_only',
+        note='Signed projection onto a frozen discovery direction. SEM comes from projected validation groups, retaining bin correlations. No p value, coverage claim or protection against repeated model selection or correlated acquisition groups.')
+
+
 def residual_repeat_diagnostic(discovery,discovery_counts,validation,validation_counts,prediction,threshold=3.):
     """Band residual norms versus empirical mean uncertainty; not a chi-square test."""
     if len(discovery)<2 or len(validation)<2:
@@ -114,12 +142,15 @@ def residual_repeat_diagnostic(discovery,discovery_counts,validation,validation_
     sd=float(np.linalg.norm(d['standard_error']));sv=float(np.linalg.norm(v['standard_error']))
     floor=np.finfo(float).eps*max(float(np.linalg.norm(d['mean'])),float(np.linalg.norm(v['mean'])),1.)*100
     ratios=[nd/sd if sd>floor else None,nv/sv if sv>floor else None]
-    mismatch=nv>threshold*max(sv,floor)
+    norm_mismatch=nv>threshold*max(sv,floor)
+    directional=directional_residual_diagnostic(rd,np.asarray(validation)-prediction,validation_counts,threshold)
+    mismatch=norm_mismatch or directional['requires_review']
     alignment=float(np.clip(np.vdot(rd,rv).real/(nd*nv),-1,1)) if min(nd,nv)>floor else None
-    repeated=bool(mismatch and nd>threshold*max(sd,floor) and alignment is not None and alignment>.5)
+    repeated=bool((norm_mismatch and nd>threshold*max(sd,floor) and alignment is not None and alignment>.5) or directional['requires_review'])
     return dict(available=bool(sd>floor and sv>floor),requires_review=bool(mismatch),
         status='reproducible_unmodelled_structure' if repeated else 'validation_residual_exceeds_repeat_scatter' if mismatch else 'no_large_residual_flag',
         discovery_residual_to_sem=ratios[0],validation_residual_to_sem=ratios[1],
         discovery_residual_norm=nd,validation_residual_norm=nv,discovery_sem_norm=sd,validation_sem_norm=sv,
         residual_alignment=alignment,reproducible_residual=repeated,ratio_threshold=threshold,
+        directional_validation=directional,band_norm_requires_review=bool(norm_mismatch),
         note='Band norm ratios are operational diagnostics, not p values or independent-bin chi-square statistics. Discovery residual is in-sample; validation prediction is frozen.')

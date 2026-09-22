@@ -588,3 +588,24 @@ is a nuisance approximation, not a unique full-FID component: matched window,
 demodulated refits and magnitude-objective comparison reject such parents;
 time-frequency inspection explicitly omits that background from its limited
 oscillator prediction. The background remains disabled by default.
+
+
+Residual review retains its band-norm diagnostic and also freezes the normalized
+complex discovery residual direction. Each validation group's residual is
+projected onto that direction using the real complex inner product. The signed
+weighted projection mean is compared with its empirical group SEM. Projection
+precedes scatter estimation, retaining frequency-bin correlations; duplicating
+correlated bins does not increase the ratio.
+
+A positive projection exceeding three projected SEMs is an operational review
+flag even if unrelated scatter elsewhere in the band dilutes the norm ratio.
+Negative projections do not count as reproduction of the discovery shape.
+No discovery direction and zero projection scatter are explicit cases, not
+infinite-confidence measurements. `validation_residual_projection.png` shows
+the group projections, also retained in `directional_validation` in the result.
+
+These diagnostics do not produce p values. Correlated acquisition groups,
+repeated validation/model selection and data-dependent discovery fitting limit
+interpretation. A flag identifies unexplained band structure, not its physical
+origin or which fitted mode is wrong; absence of a flag never establishes
+model adequacy or an intrinsic relaxation mechanism.

@@ -24,6 +24,12 @@ def candidate_residual_evidence(parent,candidate,means,counts,source,directory,c
     predicted=mode_design(p,candidate['frequencies_hz'],candidate['t2star_s'],background)@coef
     d=weighted_repeat_statistics(spectra[train],counts[train]);v=weighted_repeat_statistics(spectra[valid],counts[valid])
     result=residual_repeat_diagnostic(spectra[train],counts[train],spectra[valid],counts[valid],predicted)
+    projection=result['directional_validation'].get('validation_group_projections')
+    if projection is not None:
+        plot(directory/'validation_residual_projection.png',[(valid,projection,'Projection onto discovery residual'),
+             (valid,np.zeros(len(valid)),'Zero residual')],
+             'Validation group index','Projection amplitude (ADC units)',
+             'Frozen discovery residual direction; descriptive validation check')
     rd=d['mean']-predicted;rv=v['mean']-predicted
     plot(directory/'residual_repeat_scatter.png',[(p.f,abs(rv),'Validation residual magnitude'),(p.f,v['standard_error'],'Validation mean repeat SEM')],
         'Frequency (Hz)','ADC units','Frozen model residual versus repeat scatter; not a significance test')
@@ -154,7 +160,11 @@ def review_decay_evidence(fit_run_id, candidate_index=0, signal_run_ids=None,
     lines=['# Decay candidate evidence review','','All statuses are operational review labels, not physical acceptance.','',
            '| Frequency (Hz) | Candidate T2* (s) | Status | Missing evidence |','|---|---|---|---|']
     for r in rows: lines.append(f"| {r['frequency_hz']:.4f} | {r['candidate_t2star_s']} | {r['interpretation_status']} | {', '.join(r['missing_evidence'])} |")
-    lines+=['',f"Band residual status: {residual['status']}",'','Band residual mismatch applies to the combined model; it does not identify which individual mode is wrong. Signal support does not establish decay identifiability. Matched frequencies do not prove mode identity. Sampling percentiles omit model/processing uncertainty. A supported candidate remains exploratory; coherent interference and mechanism assignment require separate review.']
+    lines+=['',f"Band residual status: {residual['status']}",
+            f"Validation residual norm / mean-SEM norm: {residual.get('validation_residual_to_sem')}",
+            f"Signed validation projection / projected-group SEM: {residual.get('directional_validation',{}).get('signed_projection_to_sem')}",
+            'Projection direction uses discovery only. These ratios are diagnostics, not significance tests.',
+            '','Band residual mismatch applies to the combined model; it does not identify which individual mode is wrong. Signal support does not establish decay identifiability. Matched frequencies do not prove mode identity. Sampling percentiles omit model/processing uncertainty. A supported candidate remains exploratory; coherent interference and mechanism assignment require separate review.']
     (directory/'evidence_review.md').write_text('\n'.join(lines),encoding='utf-8');progress(1,1)
     return dict(parent_run_id=fit_run_id,candidate_index=candidate_index,modes=rows,resampling_evidence=samples,
         signal_run_ids=signal_run_ids or [],stability_run_id=stability_run_id,comparison_refs=refs,

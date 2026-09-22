@@ -1,9 +1,33 @@
 import unittest
 import numpy as np
-from zulf_tools.repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility,spectral_coherence,residual_repeat_diagnostic
+from zulf_tools.repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility,spectral_coherence,residual_repeat_diagnostic,directional_residual_diagnostic
 
 
 class RepeatStatisticsTests(unittest.TestCase):
+    def test_directional_check_retains_correlated_bin_scatter(self):
+        shape=np.exp(1j*np.linspace(0,2,30));coeff=np.array([.5,1.,1.5,2.,.75,1.25,1.75,.25])
+        residuals=coeff[:,None]*shape
+        r=directional_residual_diagnostic(shape,residuals,np.ones(8))
+        expected=coeff.mean()/(coeff.std(ddof=1)/np.sqrt(8))
+        self.assertAlmostEqual(r['signed_projection_to_sem'],expected)
+        duplicate=directional_residual_diagnostic(np.tile(shape,20),np.tile(residuals,(1,20)),np.ones(8))
+        self.assertAlmostEqual(duplicate['signed_projection_to_sem'],expected)
+        opposite=directional_residual_diagnostic(shape,-residuals,np.ones(8))
+        self.assertFalse(opposite['requires_review'])
+        self.assertLess(opposite['signed_projection_to_sem'],0)
+
+    def test_directional_check_detects_local_structure_amid_orthogonal_scatter(self):
+        rng=np.random.default_rng(519);d=rng.normal(size=(8,100));v=rng.normal(size=(8,100))
+        # Construct a discovery direction from its own data, not validation.
+        d-=d.mean(axis=0);d[:,0]=.5+rng.normal(0,.01,8)
+        v[:,0]=.5+rng.normal(0,.01,8)
+        r=residual_repeat_diagnostic(d,np.ones(8),v,np.ones(8),np.zeros(100))
+        self.assertFalse(r['band_norm_requires_review'])
+        self.assertTrue(r['directional_validation']['requires_review'])
+        self.assertTrue(r['requires_review'])
+        absent=directional_residual_diagnostic(np.zeros(100),v,np.ones(8))
+        self.assertFalse(absent['available']);self.assertFalse(absent['requires_review'])
+
     def test_reproducible_model_error_is_not_hidden_by_repeat_noise(self):
         rng=np.random.default_rng(602);truth=np.exp(1j*np.linspace(0,2,64));counts=np.full(8,10)
         noise=(rng.normal(size=(16,64))+1j*rng.normal(size=(16,64)))*.03
