@@ -7,6 +7,21 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def fit_window_decay(fit_run_id: str, candidate_index: int = 0, width_s: float = .2,
+                     hop_s: float = .04, sample_frequencies_hz: list[float] | None = None,
+                     settings: dict | None = None) -> dict:
+    """Start complex Hann-window refitting of a discovery FFT decay candidate.
+    Inherits original preprocessing, frequency/T2* bounds and mode count. Uses
+    five uniformly spaced observation frequencies by default. Freezes all fitted
+    coefficients for validation and cross-checks original native FFT agreement.
+    Settings: starts, max_nfev, max_evaluations, max_seconds, seed. Overlapping
+    windows are correlated; no independent-window confidence interval is claimed.
+    """
+    return jobs.start_analysis('fit_window_decay',dict(fit_run_id=fit_run_id,candidate_index=candidate_index,
+        width_s=width_s,hop_s=hop_s,sample_frequencies_hz=sample_frequencies_hz,settings=settings))
+
+
+@mcp.tool()
 def inspect_decay_stability(fit_run_id: str, candidate_index: int = 0,
                             group_indices: list[int] | None = None,
                             settings: dict | None = None) -> dict:

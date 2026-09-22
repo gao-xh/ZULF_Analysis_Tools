@@ -155,3 +155,9 @@ operator, preserves real-FID quadratures and acquisition phase, and applies SG,
 crop and mean removal identically. A real-record-size synthetic benchmark is
 saved locally. Tool integration and actual-data fitting remain unfinished;
 overlapping windows must not be counted as independent uncertainty samples.
+Milestone 12: `fit_window_decay` is exposed through CLI and typed MCP. Twelve
+integration/transport tests pass, including independently phase-reversed
+validation that must retain a large frozen window prediction error. Every run
+saves complex window arrays, independent figures and native FFT cross-checks.
+Exploratory low/high-band runs use finite per-fit budgets; numerical completion
+does not by itself establish a valid relaxation model.

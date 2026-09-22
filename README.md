@@ -23,6 +23,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `inspect_decay_time_frequency` | Compare a frozen decay candidate through matched Hann windows and anti-aliased complex demodulation. |
 | `inspect_repeat_signals` | Propose peaks on discovery groups, check validation reproducibility, measured accumulation and masked phase. |
 | `inspect_decay_stability` | Refit bounded group means from discovery initializations; separate frozen prediction errors from diagnostic refits. |
+| `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -156,7 +157,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-20 tools including `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+21 tools including `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -170,6 +171,17 @@ model assumptions, parameter mapping, optimizer and interpretation limits.
 Keep legacy applications available for comparison throughout this transition.
 
 ## Range-restricted relaxation development
+
+`fit_window_decay` takes a parent FFT `fit_run_id` and `candidate_index`, with
+`width_s`, `hop_s`, optional `sample_frequencies_hz`, and optimizer `settings`.
+It inherits the parent's group split, preprocessing, bounds and mode count.
+Five evenly spaced observation frequencies span the candidate band by default;
+these samples are not five independently resolved peaks. Fit parameters are
+estimated only on discovery means and frozen for validation. Independent
+magnitude/real/imaginary/residual figures and a native FFT cross-check are saved.
+A constant spectral-background parent is rejected because that term has no
+unique full-FID window counterpart. Sparse transform memory and optimization
+work are bounded; budget-limited results remain explicitly provisional.
 
 `inspect_decay_stability` takes a completed `fit_run_id`, `candidate_index`,
 optional `group_indices` (default: the parent's validation groups), and bounded

@@ -118,5 +118,8 @@ incomplete oscillatory model.
 Four independent tests cover direct Hann sums including mirror SG edges,
 0.12-second decay/phase recovery through a 0.25-second window, same-decay
 two-frequency beating, and invalid/resource-limited requests. Sparse storage
-is capped at two million coefficients. This is the tested numerical core;
-the experimental CLI/MCP fitting operation and method comparison remain pending.
+is capped at two million coefficients. `fit_window_decay` exposes this core as
+a CLI/MCP background operation. It preserves the parent discovery/validation
+split and checks each window-domain candidate in the original FFT band as well.
+Phase-reversed held-out data verify that validation is not silently refitted.
+Method stability and physical acceptance require further experimental checks.

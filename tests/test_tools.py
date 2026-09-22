@@ -91,6 +91,10 @@ class ToolsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
             fit=analysis.execute('fit_frequency_decay',arguments)
+            windowed=analysis.execute('fit_window_decay',dict(fit_run_id=fit['run_id'],width_s=.25,hop_s=.125,settings={'starts':2}))
+            self.assertTrue(storage.artifact(windowed['run_id'],'window_fit_arrays.npz').exists())
+            self.assertEqual(windowed['validation_groups'],[2])
+            fit['candidates'][0]['window_validation_error']=windowed['fit']['validation_relative_complex_residual']
             stability=analysis.execute('inspect_decay_stability',dict(fit_run_id=fit['run_id'],settings={'starts':2}))
             self.assertEqual(stability['completed_groups'],1)
             group=stability['group_fits'][0]
@@ -118,6 +122,8 @@ class ToolsTests(unittest.TestCase):
         np.testing.assert_allclose(original['t2star_s'],reversed_phase['t2star_s'],atol=1e-10)
         self.assertLess(original['validation_relative_complex_residual'],.01)
         self.assertGreater(reversed_phase['validation_relative_complex_residual'],1.9)
+        self.assertLess(original['window_validation_error'],.01)
+        self.assertGreater(reversed_phase['window_validation_error'],1.9)
         self.assertLess(reversed_phase['validation_group_errors'][0]['conditional_gain_relative_complex_residual'],.01)
 
     def test_repeat_signal_operation_proposes_on_discovery_only(self):
@@ -201,7 +207,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('inspect_decay_time_frequency',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_repeat_signals',{tool.name for tool in listed.tools})
                     self.assertIn('inspect_decay_stability',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),20)
+                    self.assertIn('fit_window_decay',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),21)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())
