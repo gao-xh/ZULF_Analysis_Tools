@@ -51,6 +51,43 @@ def frequency_seeds(f, observed, count, bounds):
     return np.asarray(sorted(chosen))
 
 
+def fit_diagnostics(frequencies, taus, frequency_bounds, t2_bounds, *, shared_decay,
+                    native_spacing, rank, columns, condition, converged, budget_exhausted):
+    """Numerical warning screen, not a statistical identifiability test.
+
+    Indices refer to the returned frequency-sorted modes. A sub-bin separation
+    is descriptive: parametric recovery below FFT-bin spacing can be possible.
+    """
+    hits = []
+    for label, values, bounds in [('frequency', frequencies, frequency_bounds),
+                                  ('log_t2', np.log(taus[:1] if shared_decay else taus),
+                                   np.log(t2_bounds))]:
+        lo, hi = bounds
+        for i, value in enumerate(values):
+            if min(value-lo, hi-value) < .01*(hi-lo):
+                hits.append(f'{label}_{i}')
+    close_pairs = [{'mode_indices': [i,j], 'separation_hz': float(abs(frequencies[j]-frequencies[i]))}
+                   for i in range(len(frequencies)) for j in range(i+1,len(frequencies))
+                   if abs(frequencies[j]-frequencies[i]) < native_spacing]
+    flags = []
+    if hits:
+        flags.append('search_boundary')
+    if rank < columns:
+        flags.append('rank_deficient_amplitude_design')
+    if condition is None or not np.isfinite(condition) or condition > 1e8:
+        flags.append('ill_conditioned_amplitude_design')
+    if not converged:
+        flags.append('optimizer_not_converged')
+    if budget_exhausted:
+        flags.append('search_budget_exhausted')
+    return {'boundary_hits': hits, 'numerical_warning_flags': flags,
+            'requires_review': bool(flags), 'sub_bin_frequency_pairs': close_pairs,
+            'thresholds': {'boundary_fraction': .01, 'normalized_design_condition': 1e8,
+                           'native_fft_spacing_hz': float(native_spacing)},
+            'index_convention': 'Frequency-sorted, zero-based mode indices; shared log_t2_0 applies to all modes.',
+            'interpretation': 'A clean numerical screen does not establish parameter identifiability, signal status or physical validity. Thresholds are numerical heuristics, not calibrated confidence limits.'}
+
+
 def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
               shared_decay=False, initial_frequencies=None, starts=4,
               max_nfev=150, max_evaluations=4000, max_seconds=60., seed=0,
@@ -138,13 +175,13 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
     frequencies, taus = decode(best['x'])
     order = np.argsort(frequencies,kind='stable')
     coefficients = best['coefficients'][:2*mode_count].reshape(-1,2)[order]
-    hits = []
-    for i in range(len(best['x'])):
-        if min(best['x'][i]-lower[i],upper[i]-best['x'][i]) < .01*(upper[i]-lower[i]):
-            hits.append(('frequency_' if i < mode_count else 'log_t2_')+str(i if i<mode_count else i-mode_count))
     # best may be a finite-difference trial rather than a converged endpoint;
     # require close numerical agreement with a successful recorded endpoint.
     converged = any(h['success'] and abs(h['score']-best['score']) <= max(1e-12,best['score']*1e-5) for h in history)
+    diagnostics = fit_diagnostics(frequencies[order], taus[order], frequency_bounds, t2_bounds,
+                                  shared_decay=shared_decay, native_spacing=processor.fs/processor.n,
+                                  rank=best['rank'], columns=2*mode_count+2*int(background),
+                                  condition=best['condition'], converged=converged, budget_exhausted=stopped)
     return {'frequencies_hz':frequencies[order].tolist(),'t2star_s':taus[order].tolist(),
             'cos_sin_coefficients':coefficients.tolist(),
             'amplitudes':np.linalg.norm(coefficients,axis=1).tolist(),
@@ -153,7 +190,8 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
             'background_coefficients':best['coefficients'][2*mode_count:].tolist(),
             'relative_complex_residual':float(np.linalg.norm(observed-best['fitted'])/np.linalg.norm(observed)),
             'relative_magnitude_residual':float(np.linalg.norm(abs(observed)-abs(best['fitted']))/np.linalg.norm(observed)),
-            'score':best['score'],'boundary_hits':hits,'linear_rank':best['rank'],
+            'score':best['score'],'boundary_hits':diagnostics['boundary_hits'],'linear_rank':best['rank'],
+            'numerical_diagnostics':diagnostics,
             'linear_condition_number':best['condition'],'optimizer_converged':converged,
             'budget_exhausted':stopped,'evaluations':evaluations,'elapsed_s':time.perf_counter()-start_time,
             'completed_starts':len(history),'candidates':history,'shared_decay':shared_decay,

@@ -127,3 +127,14 @@ two bands with explicit reference-noise intervals and a prespecified split.
 Independent phase and accumulation figures were inspected. These are operational
 reproducibility labels, not calibrated significance or molecular assignment;
 alternate reference bands, drift diagnosis and downstream acceptance remain open.
+Milestone 7: six local crop/SG sensitivity cases completed with 24 candidate
+models. Reports and independently inspected figures remain in local analysis
+storage. The next method checks must separate optimizer branch changes from
+preprocessing sensitivity; no new physical decay assignment was accepted.
+
+Milestone 8: decay candidates expose an explicit numerical review screen for
+boundary solutions, deficient/ill-conditioned amplitude designs, incomplete
+optimization and exhausted budgets. Sorted output indices now identify the
+correct boundary parameters. Seven decay tests pass, including exact prediction
+with duplicate-mode rank deficiency and reversed optimizer mode ordering.
+This screen does not replace nonlinear uncertainty or physical validation.

@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from scipy.signal import savgol_filter
 from zulf_tools.jfit import ProcessedSpectrum
-from zulf_tools.decay import fit_modes, mode_design
+from zulf_tools.decay import fit_modes, mode_design, real_projection, fit_diagnostics
 
 
 class DecayTests(unittest.TestCase):
@@ -60,6 +60,28 @@ class DecayTests(unittest.TestCase):
                          initial_frequencies=[38.7,41.3],starts=4)
         np.testing.assert_allclose(result['frequencies_hz'],[38.8,41.2],atol=.025)
         np.testing.assert_allclose(result['t2star_s'],[.55,1.6],rtol=.07)
+
+    def test_duplicate_modes_fail_numerical_screen_despite_exact_prediction(self):
+        p,y=self.fixture([(40.,.8,1.,.2)])
+        design=mode_design(p,[40.,40.],[.8,.8])
+        fitted,_,rank,condition=real_projection(design,y)
+        np.testing.assert_allclose(fitted,y,atol=1e-12)
+        diagnostic=fit_diagnostics(np.array([40.,40.]),np.array([.8,.8]),[35,45],[.1,3],
+            shared_decay=False,native_spacing=p.fs/p.n,rank=rank,columns=4,
+            condition=condition,converged=True,budget_exhausted=False)
+        self.assertTrue(diagnostic['requires_review'])
+        self.assertIn('rank_deficient_amplitude_design',diagnostic['numerical_warning_flags'])
+        self.assertEqual(diagnostic['sub_bin_frequency_pairs'][0]['mode_indices'],[0,1])
+
+    def test_boundary_indices_follow_sorted_output_not_optimizer_order(self):
+        p,y=self.fixture([(38.,.6,1.,.2),(43.,4.,1.,-.5)])
+        result=fit_modes(p,y,[35,45],[.1,2.],mode_count=2,
+                         initial_frequencies=[43.,38.],starts=3,max_seconds=20)
+        self.assertLess(result['frequencies_hz'][0],result['frequencies_hz'][1])
+        self.assertGreater(result['t2star_s'][1],1.99)
+        self.assertIn('log_t2_1',result['boundary_hits'])
+        self.assertNotIn('log_t2_0',result['boundary_hits'])
+        self.assertIn('search_boundary',result['numerical_diagnostics']['numerical_warning_flags'])
 
 
 if __name__=='__main__':

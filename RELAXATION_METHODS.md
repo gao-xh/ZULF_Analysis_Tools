@@ -80,3 +80,21 @@ RMS by sqrt(N_A N_B)/(N_A+N_B) to estimate the noise of their pooled mean.
 The noise-vs-count slope is measured rather than imposed. Repeated permutations
 and sizes share observations, so slope statistics are descriptive. Coherent
 interference can survive averaging and still obey the expected SNR trend.
+# Numerical screening of decay candidates
+
+Each bounded mode fit now includes `numerical_diagnostics`. This reports search
+boundaries, rank deficiency or severe conditioning of the column-normalized
+real amplitude design, incomplete optimization, and exhausted search budgets.
+Boundary indices refer to the frequency-sorted returned modes; a shared
+`log_t2_0` applies to every mode. Boundary proximity uses 1% of the frequency
+interval or logarithmic decay interval. A normalized design condition number
+above 1e8 triggers review. These are explicit numerical heuristics, not
+confidence limits or a statistical identifiability test.
+
+Sub-bin frequency pairs are also recorded, without automatically rejecting
+them: finite FFT spacing is not a universal limit on parametric estimation.
+Conversely, passing the screen cannot establish a signal, a relaxation
+component, or a physical mechanism. Repeat validation, preprocessing stability,
+and uncertainty checks remain necessary. A synthetic exact-duplicate example
+verifies that an essentially perfect prediction can still have rank-deficient
+amplitudes. Reversed optimizer mode order verifies sorted boundary indexing.
