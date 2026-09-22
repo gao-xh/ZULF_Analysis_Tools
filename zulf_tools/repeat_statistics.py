@@ -58,7 +58,7 @@ def accumulation_diagnostic(spectra, counts, noise_mask, target_index, permutati
     good=[r for r in records if r['median_difference_noise']>0]
     slope=float(np.polyfit(np.log([r['median_total_scans'] for r in good]),np.log([r['median_difference_noise'] for r in good]),1)[0]) if len(good)>=3 else None
     return {'levels':records,'noise_log_log_slope':slope,'independent_noise_expected_slope':-.5,
-            'note':'Measured disjoint-pool differences; drift included. Correlated subset statistics, no significance claim.'}
+            'note':'Measured disjoint-pool differences; drift included. Common components cancel and are not measured as noise. Pooled magnitudes can be noise biased. Correlated subset statistics, no significance claim.'}
 
 
 def classify_reproducibility(discovery_snr, validation_snr, frequency_agreement,

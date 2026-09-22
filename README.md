@@ -305,6 +305,12 @@ reference-band accumulation curve appears for each candidate; only the signal
 amplitude/SNR differs. Reference bands may contain leakage or drift, so compare
 alternative reference bands before interpretation. Phase plots hide bins below
 the repeat-SNR threshold and never apply an alignment or unwrap across gaps.
+Each candidate has separate accumulation-amplitude and SNR-proxy figures in
+addition to the noise curve. Their SNR uses the reference-band pool-difference
+noise, not the target-bin repeat scatter used for classification. A common
+component cancels from pool differences; even square-root growth cannot rule
+out common noise or coherent interference. Magnitudes can be noise biased,
+and subset levels are correlated. These plots do not change signal labels.
 
 
 ## Reviewing decay evidence

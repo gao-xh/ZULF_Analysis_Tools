@@ -103,6 +103,18 @@ def inspect_repeat_signals(group_run_id, ranges, noise_ranges, discovery_groups,
             accumulation=accumulation_diagnostic(small,counts[train],small_mask,0)
             levels=accumulation['levels'];sizes=[r['median_total_scans'] for r in levels]
             errors=[r['median_difference_noise'] for r in levels]
+            amplitudes=[r['median_signal_amplitude'] for r in levels]
+            snrs=[r['snr'] if r['snr'] is not None else np.nan for r in levels]
+            plot(directory/f'band_{bi}_peak_{pi}_accumulation_amplitude.png',
+                 [(sizes,amplitudes,'Median pooled magnitude')],
+                 'Total scans in two disjoint pools','Magnitude (ADC units)',
+                 f'{frequency:.4f} Hz: discovery-only accumulation; magnitude can be noise biased')
+            snr_traces=[(sizes,snrs,'Measured amplitude / difference-noise proxy')]
+            if np.isfinite(snrs[0]):
+                snr_traces.append((sizes,snrs[0]*np.sqrt(np.asarray(sizes)/sizes[0]),'Reference sqrt(N)'))
+            plot(directory/f'band_{bi}_peak_{pi}_accumulation_snr.png',snr_traces,
+                 'Total scans in two disjoint pools','Reference-band SNR proxy',
+                 f'{frequency:.4f} Hz: correlated subset summaries; not molecular identification')
             plot(directory/f'band_{bi}_peak_{pi}_accumulation.png',
                  [(sizes,errors,'Measured pool-difference noise'),
                   (sizes,errors[0]*np.sqrt(sizes[0]/np.asarray(sizes)),'Reference 1/sqrt(N)')],
@@ -133,6 +145,7 @@ def inspect_repeat_signals(group_run_id, ranges, noise_ranges, discovery_groups,
                         'Band-coherence bins use discovery SNR only; validation does not select the mask. Common phase is diagnostic, not a frequency or delay correction.',
                         'Peaks are proposed only from discovery data; validation checks reuse no fitted model.',
                         'Coherent interference can be reproducible and obey sqrt(N) SNR growth.',
+                        'Pool-difference noise cancels any component common to both pools; it cannot measure common-mode uncertainty.',
                         'Reference noise bands are caller assumptions; signal leakage or drift can contaminate them.',
                         'Subset accumulation levels and permutations are correlated; no slope significance is claimed.',
                         'Phase is hidden below the operational repeat-SNR mask; no phase correction was applied.',

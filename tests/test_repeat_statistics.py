@@ -86,6 +86,20 @@ class RepeatStatisticsTests(unittest.TestCase):
         self.assertEqual(classify_reproducibility(20,20,True),'reproducible_signal_candidate')
         self.assertEqual(classify_reproducibility(1,2,False),'noise_compatible')
 
+    def test_accumulation_difference_cannot_measure_common_component(self):
+        rng=np.random.default_rng(124)
+        noise=(rng.normal(size=(16,128))+1j*rng.normal(size=(16,128)))*.01
+        mask=np.ones(128,bool);mask[0]=False
+        baseline=accumulation_diagnostic(noise,np.ones(16),mask,0)
+        # A shared spectral component changes pooled amplitudes but cancels
+        # identically in differences, including in reference noise bins.
+        common=np.exp(1j*np.linspace(0,2,128))
+        biased=accumulation_diagnostic(noise+common,np.ones(16),mask,0)
+        np.testing.assert_allclose(
+            [r['median_difference_noise'] for r in baseline['levels']],
+            [r['median_difference_noise'] for r in biased['levels']],rtol=1e-12)
+        self.assertGreater(biased['levels'][-1]['snr'],baseline['levels'][-1]['snr']*100)
+
 
 if __name__=='__main__':
     unittest.main()
