@@ -7,6 +7,19 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def inspect_n15_hypotheses(j_fit_run_id: str, hypotheses: list[dict], rates_per_s: list[float],
+                          abundance_n15: float = .003663, abundance_c13: float = .0107) -> dict:
+    """Screen explicit N15 ten-spin or NH2-decoupled hypotheses against a frozen carbon fit.
+    Each hypothesis supplies label, include_nh2 and couplings_hz (J_HH_vicinal,
+    J_N_methyl, J_N_methine, J_NH, J_NH_Hmethine). Preserve signed gamma and
+    absolute thermal weights; compare natural-response and free gain/phase.
+    Same-data screening is not isotope identification or independent validation.
+    """
+    return jobs.start_analysis('inspect_n15_hypotheses',dict(j_fit_run_id=j_fit_run_id,hypotheses=hypotheses,
+        rates_per_s=rates_per_s,abundance_n15=abundance_n15,abundance_c13=abundance_c13))
+
+
+@mcp.tool()
 def compare_decay_objectives(fit_run_id: str, candidate_index: int = 0, settings: dict | None = None) -> dict:
     """Compare a complex FFT candidate with a magnitude-only bounded refit.
     Same data/groups, processing, mode count and frequency/T2* bounds. Complex-fit

@@ -30,6 +30,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `fit_demodulated_decay` | Fit bounded oscillatory modes through matched complex FIR demodulation, with explicit edge policy and frozen validation. |
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
+| `inspect_n15_hypotheses` | Screen explicit N15 coupling hypotheses against a frozen carbon fit, retaining signed gamma, absolute thermal weights and isotope probabilities; see [scope and literature](N15_HYPOTHESES.md). |
 | `resample_decay_groups` | Resample discovery-group means with saved circular-block draws, bounded refits and conditional percentile diagnostics. |
 | `inspect_fid_crops` | Propose discovery-only time crops from baseline and complete-window band diagnostics; retain full-record comparison and inspect held-out tails. |
 | `review_decay_evidence` | Link a decay candidate to compatible signal, group, resampling and sensitivity evidence; expose missing or conflicting evidence without physical acceptance. |
