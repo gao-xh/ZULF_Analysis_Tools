@@ -8,6 +8,29 @@ from .repeat_statistics import weighted_repeat_statistics
 from .band_relaxation import _indices
 
 
+def display_extrema_indices(values, max_points=15000):
+    """Bound plot size while retaining bin extrema at original sample times.
+
+    This is a display summary, not a resampling/filtering operation. It does
+    not preserve every oscillation and must never be used as fitting input.
+    """
+    values=np.asarray(values)
+    if values.ndim!=1 or not np.isfinite(values).all() or np.iscomplexobj(values):
+        raise ValueError('Display extrema require a finite real vector.')
+    if type(max_points) is not int or max_points<4:
+        raise ValueError('Display budget must be an integer of at least four.')
+    n=len(values)
+    if n<=max_points:return np.arange(n)
+    width=int(np.ceil(n/((max_points-2)//2)))
+    full=n//width;blocks=values[:full*width].reshape(full,width)
+    starts=np.arange(full)*width
+    indices=list(starts+blocks.argmin(axis=1))+list(starts+blocks.argmax(axis=1))
+    if full*width<n:
+        tail=values[full*width:]
+        indices.extend([full*width+tail.argmin(),full*width+tail.argmax()])
+    return np.unique([0,n-1,*indices])
+
+
 def band_blocks(values, counts, fs, ranges, width_s):
     """Complete nonoverlapping Hann blocks; band RMS is a diagnostic, not a decay fit."""
     values=np.asarray(values,float)
@@ -160,10 +183,14 @@ def inspect_fid_crops(group_run_id, ranges, discovery_groups, validation_groups,
         plot(directory/'candidate_start_zoom.png',[(t[mask],arrays[role+'_processed_fid'][mask],role.title()) for role in diagnostics],
             'Acquisition time (s)','ADC amplitude','FID near proposed starts; no points removed')
     for label,mask in [('full',np.ones(len(t),bool)),('early',t<min(1.,duration/4)),('tail',t>=duration-min(2.,duration/4))]:
-        indices=np.flatnonzero(mask);indices=indices[::max(1,len(indices)//15000)]
         for kind in ['raw','processed']:
-            plot(directory/f'{label}_{kind}_fid.png',[(t[indices],arrays[role+'_'+kind+'_fid'][indices],role.title()) for role in diagnostics],
-                'Acquisition time (s)','ADC amplitude',f'{label.title()} {kind} FID; display sampled, data unchanged')
+            traces=[]
+            for role in diagnostics:
+                values=arrays[role+'_'+kind+'_fid'][mask]
+                indices=display_extrema_indices(values)
+                traces.append((t[mask][indices],values[indices],role.title()))
+            plot(directory/f'{label}_{kind}_fid.png',traces,
+                'Acquisition time (s)','ADC amplitude',f'{label.title()} {kind} FID; display extrema, data unchanged')
     plot(directory/'local_baseline.png',[(times,diagnostics[role]['local_raw_mean'],role.title()) for role in diagnostics],
         'Acquisition time (s)','Local raw mean (ADC units)','Baseline recovery diagnostic; complete blocks')
     for i,band in enumerate(ranges):

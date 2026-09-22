@@ -366,6 +366,13 @@ or drift. End proposals retain the last discovery-supported window plus one
 window margin; a later revival prevents an earlier cutoff. No detected signal
 keeps the full endpoint. Full data are always included as a baseline candidate.
 
+Crop-diagnostic FID figures retain local display-bin minima and maxima at their
+original sample times, including endpoints, with at most 15,000 points per trace.
+Short views retain every sample. This prevents regular display strides from
+missing narrow transients or systematically undersampling oscillation extrema.
+The display summary is not a filtered/resampled FID and cannot resolve every
+oscillation. Numeric diagnostics, stored arrays and fitting always use full data.
+
 Held-out groups do not determine proposals; their supported windows beyond each
 suggested endpoint are reported separately. These ratios are operational
 repeat-scatter diagnostics, not significance levels. Short windows mix nearby

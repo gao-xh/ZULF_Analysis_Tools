@@ -1,9 +1,25 @@
 import unittest
 import numpy as np
-from zulf_tools.crop_diagnostics import band_blocks,propose_intervals,guarded_start,early_amplitude_diagnostic
+from zulf_tools.crop_diagnostics import band_blocks,propose_intervals,guarded_start,early_amplitude_diagnostic,display_extrema_indices
 
 
 class CropTests(unittest.TestCase):
+    def test_display_retains_transients_missed_by_regular_stride(self):
+        y=np.zeros(65516);y[1]=100.;y[103]=-90.;y[-1]=7.
+        original=y.copy();indices=display_extrema_indices(y)
+        self.assertEqual(y[::4].max(),0.)
+        self.assertTrue({0,1,103,len(y)-1}.issubset(set(indices)))
+        self.assertLessEqual(len(indices),15000)
+        self.assertTrue(np.all(np.diff(indices)>0))
+        np.testing.assert_array_equal(y,original)
+        for n in [0,1,4,15,100,101,65516]:
+            for budget in [4,5,16,15000]:
+                data=np.sin(np.arange(n));selected=display_extrema_indices(data,budget)
+                self.assertLessEqual(len(selected),budget)
+                if n:
+                    self.assertEqual(data[selected].min(),data.min())
+                    self.assertEqual(data[selected].max(),data.max())
+
     def test_fine_blocks_locate_finite_transient_and_preserve_threshold_alternatives(self):
         y=np.ones(1000);y[:40]=1000;y[40:80]=15
         r=early_amplitude_diagnostic(y,1000)
