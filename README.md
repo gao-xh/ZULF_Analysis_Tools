@@ -26,6 +26,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
 | `resample_decay_groups` | Resample discovery-group means with saved circular-block draws, bounded refits and conditional percentile diagnostics. |
+| `review_decay_evidence` | Link a decay candidate to compatible signal, group, resampling and sensitivity evidence; expose missing or conflicting evidence without physical acceptance. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
 | `start_analysis` | Start any operation as a persistent background job. |
@@ -159,7 +160,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-23 tools including `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+24 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -289,3 +290,27 @@ reference-band accumulation curve appears for each candidate; only the signal
 amplitude/SNR differs. Reference bands may contain leakage or drift, so compare
 alternative reference bands before interpretation. Phase plots hide bins below
 the repeat-SNR threshold and never apply an alignment or unwrap across gaps.
+
+
+## Reviewing decay evidence
+
+`review_decay_evidence` takes `fit_run_id`, `candidate_index`, optional
+`signal_run_ids`, `stability_run_id`, `resampling_run_ids` and `comparison_refs`.
+Each comparison is an explicit `{"run_id": "...", "candidate_index": 1}`
+for FFT fits, or `{"run_id": "..."}` for window fits. Mode counts must match;
+frequency matching is one-to-one within two native FFT bins and does not prove
+physical identity. Source hashes and discovery/validation membership must match.
+Signal evidence additionally requires identical processing. Stability and
+resampling must reference this exact parent candidate.
+
+The tool writes `evidence_review.md` and per-mode evidence in its manifest.
+Missing signal support suppresses the reported candidate decay value. Numerical
+warnings, unstable group/resampling results, and missing evidence prevent a
+supported label. Sensitivity is flagged if a matched comparison changes T2*
+beyond `relative_change_threshold` (default 0.1), falls outside a supplied
+conditional sampling percentile range, or is numerically provisional. These are
+operational diagnostics, not statistical acceptance tests. Even an
+`exploratory_supported_candidate` has `physical_component_accepted: false`:
+residual adequacy, interference, model error and mechanism remain separate
+scientific questions. Repeating signal checks with different reference noise
+bands does not provide independent repeat-classification evidence.

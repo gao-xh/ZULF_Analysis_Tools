@@ -7,6 +7,22 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def review_decay_evidence(fit_run_id: str, candidate_index: int = 0,
+                           signal_run_ids: list[str] | None = None, stability_run_id: str | None = None,
+                           resampling_run_ids: list[str] | None = None, comparison_refs: list[dict] | None = None,
+                           relative_change_threshold: float = .1) -> dict:
+    """Review matched signal, group, resampling and explicit sensitivity evidence.
+    Checks source/split compatibility and exact signal preprocessing. Comparison
+    refs contain run_id and candidate_index for FFT fits, or run_id for window
+    fits. Missing/conflicting evidence is explicit. All statuses remain exploratory;
+    no automatic physical acceptance or intrinsic T2 assignment.
+    """
+    return jobs.start_analysis('review_decay_evidence',dict(fit_run_id=fit_run_id,candidate_index=candidate_index,
+        signal_run_ids=signal_run_ids,stability_run_id=stability_run_id,resampling_run_ids=resampling_run_ids,
+        comparison_refs=comparison_refs,relative_change_threshold=relative_change_threshold))
+
+
+@mcp.tool()
 def resample_decay_groups(fit_run_id: str, candidate_index: int = 0, draws: int = 100,
                            block_length: int = 1, settings: dict | None = None) -> dict:
     """Start bounded discovery-group resampling; validation groups are untouched.
