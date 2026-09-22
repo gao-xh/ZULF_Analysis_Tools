@@ -1,9 +1,20 @@
 import unittest
 import numpy as np
-from zulf_tools.crop_diagnostics import band_blocks,propose_intervals,guarded_start
+from zulf_tools.crop_diagnostics import band_blocks,propose_intervals,guarded_start,early_amplitude_diagnostic
 
 
 class CropTests(unittest.TestCase):
+    def test_fine_blocks_locate_finite_transient_and_preserve_threshold_alternatives(self):
+        y=np.ones(1000);y[:40]=1000;y[40:80]=15
+        r=early_amplitude_diagnostic(y,1000)
+        self.assertEqual(r['reference_interval_s'],[.5,1.])
+        self.assertEqual([p['candidate_start_s'] for p in r['thresholds']],[.085,.085,.045])
+        # A burst away from acquisition start is not a reason to trim everything.
+        y[:80]=1;y[200:240]=1000
+        self.assertTrue(all(p['candidate_start_s'] is None for p in early_amplitude_diagnostic(y,1000)['thresholds']))
+        y[:500]=1000
+        self.assertTrue(all(p['candidate_start_s'] is None for p in early_amplitude_diagnostic(y,1000)['thresholds']))
+
     def test_slow_baseline_does_not_discard_fast_signal(self):
         self.assertEqual(guarded_start(2.75,.0375,16.379),(.0375,True,False))
         self.assertEqual(guarded_start(None,0.,16.379),(0.,True,False))

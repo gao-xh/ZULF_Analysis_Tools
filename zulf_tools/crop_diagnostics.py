@@ -1,6 +1,7 @@
 """Discovery-only crop proposals with held-out diagnostics, never automatic trimming."""
 import numpy as np
 from scipy.signal import get_window
+from matplotlib.figure import Figure
 from . import storage
 from .repeats import load_group_averages
 from .repeat_statistics import weighted_repeat_statistics
@@ -57,8 +58,36 @@ def guarded_start(recovery_s, guard_s, duration_s):
     return min(cap,max(0. if rejected else recovery_s,guard_s)),rejected,guard_s>cap
 
 
+def early_amplitude_diagnostic(values, fs, block_s=.005, early_s=1., ratios=(5.,10.,20.)):
+    """Locate large early amplitudes relative to later early-record RMS, not a cause."""
+    values=np.asarray(values,float)
+    if values.ndim!=1 or not np.isfinite(values).all() or not np.isfinite([fs,block_s,early_s]).all() or min(fs,block_s,early_s)<=0:
+        raise ValueError('Invalid early-time diagnostic settings.')
+    ratios=np.asarray(ratios,float)
+    if ratios.ndim!=1 or not 1<=len(ratios)<=4 or not np.isfinite(ratios).all() or np.any(ratios<=1):
+        raise ValueError('Supply 1..4 finite amplitude ratios greater than one.')
+    width=max(2,int(round(block_s*fs)));n=min(len(values),int(round(early_s*fs)))//width
+    if n<12: raise ValueError('Early diagnostic needs at least 12 complete blocks.')
+    rms=np.sqrt(np.mean(values[:n*width].reshape(n,width)**2,axis=1))
+    split=n//2;reference=float(np.median(rms[split:]))
+    floor=np.finfo(float).eps*max(1.,float(np.max(rms)))
+    reference=max(reference,floor);rows=[]
+    for ratio in ratios:
+        high=rms[:split]>ratio*reference;hits=np.flatnonzero(high)
+        # Require evidence at acquisition start; a later isolated burst does not
+        # justify removing the entire preceding interval.
+        initial=bool(np.any(high[:min(3,split)]));resolved=bool(initial and len(hits) and hits[-1]<split-2)
+        end=float((hits[-1]+1)*width/fs) if len(hits) else None
+        rows.append(dict(ratio=float(ratio),threshold_rms=float(ratio*reference),
+            initial_excess=initial,resolved_before_reference=resolved,last_excess_end_s=end,
+            candidate_start_s=float((hits[-1]+2)*width/fs) if resolved else None))
+    return dict(times_s=(np.arange(n)+.5)*width/fs,rms=rms,reference_rms=reference,
+        reference_interval_s=[split*width/fs,n*width/fs],actual_block_s=width/fs,thresholds=rows)
+
+
 def inspect_fid_crops(group_run_id, ranges, discovery_groups, validation_groups,
                       sg_window=0, sg_order=2, width_s=.25, snr_threshold=5.,
+                      early_block_s=.005, early_duration_s=1., early_amplitude_ratios=None,
                       *,record,directory,cancel,progress):
     from .analysis import recipe,plot
     means,counts,source=load_group_averages(group_run_id)
@@ -99,11 +128,37 @@ def inspect_fid_crops(group_run_id, ranges, discovery_groups, validation_groups,
     guard=(sg_window//2)/fs if sg_window else 0.
     start,fallback,capped=guarded_start(raw_start if first is not None else None,guard,duration)
     proposals=propose_intervals(d['snr'],times,actual,duration,start,snr_threshold)
+    early={role:early_amplitude_diagnostic(arrays[role+'_processed_fid'],fs,early_block_s,
+        min(early_duration_s,duration),[5.,10.,20.] if early_amplitude_ratios is None else early_amplitude_ratios) for role in diagnostics}
+    candidates=sorted(set(r['candidate_start_s'] for r in early['discovery']['thresholds'] if r['candidate_start_s'] is not None))
+    if candidates:
+        endpoint=min(p['end_s'] for p in proposals)
+        # Every threshold alternative is preserved, including the earliest one.
+        proposals=[proposals[0]]
+        for point in candidates:
+            if endpoint-point>=4*actual:
+                proposals.append(dict(start_s=point,end_s=endpoint,reason='Early-amplitude threshold alternative; one fine-block guard'))
+        if duration-candidates[-1]>=4*actual and endpoint<duration:
+            proposals.append(dict(start_s=candidates[-1],end_s=duration,reason='Latest early-amplitude alternative with full tail'))
+    for role,e in early.items():
+        arrays[role+'_early_times_s']=e['times_s'];arrays[role+'_early_rms']=e['rms']
+    fig=Figure(figsize=(10,4.6),layout='constrained');ax=fig.add_subplot(111)
+    for role,e in early.items(): ax.semilogy(e['times_s'],np.maximum(e['rms'],1e-15),label=role.title())
+    for r in early['discovery']['thresholds']: ax.axhline(r['threshold_rms'],linestyle=':',alpha=.6,label=f"Discovery {r['ratio']:g}x reference")
+    for point in candidates: ax.axvline(point,color='gray',linestyle='--',alpha=.5)
+    ax.set(xlabel='Acquisition time (s)',ylabel='Processed FID block RMS (ADC units)',title='Large early amplitudes: threshold alternatives, cause unverified');ax.legend()
+    fig.savefig(directory/'early_amplitude_thresholds.png',dpi=150)
     for p in proposals:
         omitted=times-actual/2>=p['end_s']
         p['validation_supported_windows_after_end']=int(np.sum(np.any(diagnostics['validation']['snr'][:,omitted]>=snr_threshold,axis=0)))
-        p['requires_review']=bool(p['validation_supported_windows_after_end'])
+        e=early['validation'];retained=(e['times_s']-e['actual_block_s']/2>=p['start_s'])&(e['times_s']<p['end_s'])
+        p['validation_large_amplitude_blocks_retained']=int(np.sum(retained&(e['rms']>min(r['threshold_rms'] for r in early['discovery']['thresholds']))))
+        p['requires_review']=bool(p['validation_supported_windows_after_end'] or p['validation_large_amplitude_blocks_retained'])
     t=np.arange(source['points'])/fs
+    if candidates:
+        mask=(t>=max(0,candidates[0]-2*early['discovery']['actual_block_s']))&(t<=min(duration,candidates[-1]+.15))
+        plot(directory/'candidate_start_zoom.png',[(t[mask],arrays[role+'_processed_fid'][mask],role.title()) for role in diagnostics],
+            'Acquisition time (s)','ADC amplitude','FID near proposed starts; no points removed')
     for label,mask in [('full',np.ones(len(t),bool)),('early',t<min(1.,duration/4)),('tail',t>=duration-min(2.,duration/4))]:
         indices=np.flatnonzero(mask);indices=indices[::max(1,len(indices)//15000)]
         for kind in ['raw','processed']:
@@ -123,8 +178,10 @@ def inspect_fid_crops(group_run_id, ranges, discovery_groups, validation_groups,
         snr_threshold=snr_threshold,baseline_tail_reference=center,baseline_tolerance=10*noise,
         baseline_recovery_candidate_s=raw_start if first is not None else None,
         baseline_start_rule_rejected=fallback,start_proposal_capped=capped,
+        early_amplitude_diagnostics={role:{k:v for k,v in e.items() if k not in ('times_s','rms')} for role,e in early.items()},
         candidate_intervals=proposals,scientifically_validated=False,
         warnings=['Proposals use discovery only; held-out diagnostics do not select or change them.',
+        'Large early amplitude may include fast molecular signal. Thresholds do not identify artifact origin or prove a clean start.',
         'Tail baseline reference may contain a slow signal or drift; no baseline recovery is proven.',
         'Hann band RMS mixes peaks, beating and leakage; it is not a relaxation envelope or a noise significance test.',
         'Nonoverlapping windows remain correlated under filtering and acquisition drift.',

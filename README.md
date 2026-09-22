@@ -336,7 +336,7 @@ Each band needs two native bins per complete nonoverlapping Hann window.
 
 Outputs include independent full/early/tail raw and processed FID figures,
 local baseline and window band-amplitude/SEM-ratio figures, diagnostic arrays,
-and up to five candidate intervals. Starts use a heuristic raw-baseline
+and up to six candidate intervals. Starts use a heuristic raw-baseline
 recovery check against the final quarter of blocks and an SG half-window guard,
 capped at min(1 second, 10% of record). A raw baseline that recovers later than
 that cap rejects the baseline-based start rule and falls back to the earlier
@@ -352,3 +352,19 @@ repeat-scatter diagnostics, not significance levels. Short windows mix nearby
 peaks and leakage, and band RMS is not an exponential envelope. Compare the
 proposed fits under identical processing before adopting any crop; preserve
 failed and sensitive results. Plots use display subsampling only.
+
+
+Early-start refinement uses `early_block_s` (default 0.005 s),
+`early_duration_s` (default 1 s) and `early_amplitude_ratios` (default [5,10,20]).
+Processed-FID block RMS is compared with its median in the latter half of this
+early interval. A threshold alternative requires excess amplitude near the
+acquisition start and its disappearance before the reference interval; the
+candidate retains a one-fine-block margin after the last excess. Isolated later
+bursts and unresolved excess do not automatically remove preceding data.
+Distinct discovery alternatives replace coarse start offsets when available;
+the full record and a full-tail alternative remain. Independent validation
+large-amplitude blocks retained by each crop are recorded against discovery
+thresholds. `early_amplitude_thresholds.png` and `candidate_start_zoom.png`
+show this decision. Ratios and reference intervals are explicit heuristics:
+large early amplitude can itself include fast molecular signal. They cannot
+prove an artifact-free crop, so alternative fits must still be compared.
