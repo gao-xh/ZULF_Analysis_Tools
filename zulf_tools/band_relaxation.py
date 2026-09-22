@@ -93,10 +93,15 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
     records=[]; arrays={}; work=0; halted=False
     configurations=[(k,shared) for k in sorted(components) for shared in ([True,False] if k>1 and s['compare_shared_decay'] else [False])]
     total=len(ranges)*len(configurations)
+    band_inputs=[]
+    schedule=[dict(band_index=band,mode_count=k,shared_decay=shared)
+              for k,shared in configurations for band in range(len(ranges))]
     for band,(lo,hi) in enumerate(ranges):
         bins=np.flatnonzero((frequency>=lo)&(frequency<=hi))
         if len(bins)<8 or len(bins)>5000:
             raise ValueError('Each requested band must contain 8..5000 native FFT bins.')
+        if 2*len(bins)<=4*max(components)+2:
+            raise ValueError(f'Band {band} has too few native observations for the requested mode counts.')
         p=ProcessedSpectrum(fs,points,params['start_sample'],params['stop_sample'],bins,params['sg_window'],params['sg_order'])
         observed=train_y[bins]; held=validation_y[bins]
         # Empirical repeat scatter, including drift. Not stationary thermal noise.
@@ -109,7 +114,11 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
         arrays[f'band_{band}_validation']=held
         arrays[f'band_{band}_group_spectra']=spectra[:,bins]
         arrays[f'band_{band}_discovery_scatter']=scatter
-        for modes,shared in configurations:
+        band_inputs.append((band,(lo,hi),bins,p,observed,held))
+    # Give every band its simplest requested baseline before spending the
+    # remaining budget on more complex configurations of any one band.
+    for modes,shared in configurations:
+        for band,(lo,hi),bins,p,observed,held in band_inputs:
             if cancel():
                 raise InterruptedError('Frequency-decay analysis cancelled.')
             remaining=s['total_seconds']-(time.perf_counter()-started)
@@ -156,12 +165,18 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
             storage.write_json(directory/'candidates.json',records)
         if halted:
             break
+    # Preserve the established completed-result candidate ordering. Progress
+    # files follow execution order until this final canonical rewrite.
+    records.sort(key=lambda r:(r['band_index'],r['mode_count'],not r['shared_decay']))
+    storage.write_json(directory/'candidates.json',records)
     np.savez_compressed(directory/'band_arrays.npz',**arrays)
     return {'parent_run_id':group_run_id,'source_arrays_sha256':parent['arrays_sha256'],
             'discovery_groups':train,'validation_groups':valid,'preprocessing':params,
             'ranges_hz':ranges,'t2_bounds_s':list(t2_bounds),'bounds_origin':bounds_origin,
             'bounds_proposal':bounds_proposal,
             'components':components,'settings':s,'candidates':records,
+            'configuration_schedule':schedule,
+            'candidate_order':'Band index, mode count, shared before independent. Execution prioritizes simpler configurations across bands.',
             'completed_configurations':work,'requested_configurations':total,
             'total_budget_exhausted':halted,'elapsed_s':time.perf_counter()-started,
             'scientifically_validated':False,

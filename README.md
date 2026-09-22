@@ -609,3 +609,20 @@ repeated validation/model selection and data-dependent discovery fitting limit
 interpretation. A flag identifies unexplained band structure, not its physical
 origin or which fitted mode is wrong; absence of a flag never establishes
 model adequacy or an intrinsic relaxation mechanism.
+
+
+Multi-band frequency fitting now schedules each requested configuration across
+all bands before advancing to the next, more complex configuration. The default
+therefore attempts every band's single-mode baseline before two-mode fits.
+Explicit component lists are honored; no unrequested one-mode fit is inserted.
+All bands are checked for sufficient native observations before fitting starts.
+
+Completed `candidates` retain canonical order: band, mode count, shared decay
+before independent decay. `configuration_schedule` records actual planned
+execution order. During execution the partial candidate file follows completion
+order; the final file is rewritten canonically. Use the saved artifact prefix
+and candidate metadata when inspecting partial work. A time-limited run can
+still omit candidates, but one band's complex comparisons no longer take
+priority over another band's simplest requested baseline. Time budgets are
+cooperatively checked at fit boundaries/evaluations; preprocessing, plotting,
+a single expensive evaluation and final artifact writes are not preempted.
