@@ -58,6 +58,13 @@ Budgets are cooperative: a single evaluation, preprocessing or figure write can
 extend past a time limit. Check both run-level completeness and candidate flags.
 Inspect returned candidate metadata rather than guessing a candidate index.
 
+Frequency-decay requests reject invalid fit controls before group preprocessing:
+`starts` is an integer from 1 to 32, `max_nfev` from 2 to 2000, and
+`max_evaluations` from 2 to 100000. Time budgets must be finite positive numbers;
+an infinite per-fit limit is not silently replaced by the total budget. `seed`
+must be a nonnegative integer, and model flags must be actual JSON booleans.
+Explicit T2* bounds are also checked before preprocessing.
+
 ## 3. Decide what to do next
 
 | Evidence | Next action |

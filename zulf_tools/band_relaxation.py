@@ -49,6 +49,22 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
     if settings and set(settings)-set(s):
         raise ValueError('Unknown frequency-decay settings.')
     s.update(settings or {})
+    # Validate before preprocessing or clipping per-fit time to the remaining
+    # operation budget. Clipping must not hide an invalid infinite limit.
+    for name,low,high in [('starts',1,32),('max_nfev',2,2000),('max_evaluations',2,100000)]:
+        if type(s[name]) is not int or not low<=s[name]<=high:
+            raise ValueError(f'{name} must be an integer from {low} to {high}.')
+    for name in ['max_seconds','total_seconds']:
+        if type(s[name]) not in (int,float) or not np.isfinite(s[name]) or s[name]<=0:
+            raise ValueError(f'{name} must be finite and positive.')
+    for name in ['compare_shared_decay','background']:
+        if type(s[name]) is not bool:
+            raise ValueError(f'{name} must be boolean.')
+    if type(s['seed']) is not int or s['seed']<0:
+        raise ValueError('seed must be a nonnegative integer.')
+    if t2_bounds is not None:
+        if len(t2_bounds)!=2 or not np.isfinite(t2_bounds).all() or not 0<t2_bounds[0]<t2_bounds[1]:
+            raise ValueError('T2* bounds must be finite, positive and increasing.')
     initial=s['initial_frequencies_hz']
     if initial is not None:
         if len(components)!=1 or not isinstance(initial,list) or len(initial)!=len(ranges):
@@ -57,8 +73,6 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
             values=np.asarray(seeds,dtype=float)
             if values.shape!=(components[0],) or not np.isfinite(values).all() or np.any((values<lo)|(values>hi)):
                 raise ValueError('Initial frequencies must match the mode count and lie inside their band.')
-    if not np.isfinite(s['total_seconds']) or s['total_seconds']<=0 or type(s['compare_shared_decay']) is not bool:
-        raise ValueError('Invalid total budget or compare_shared_decay flag.')
     spec=preprocessing or {}
     processed=[]
     for group in means:

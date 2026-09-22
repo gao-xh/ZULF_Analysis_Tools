@@ -9,6 +9,27 @@ from zulf_tools import band_relaxation, storage
 
 
 class BandBudgetTests(unittest.TestCase):
+    def test_invalid_controls_rejected_before_preprocessing(self):
+        cases=[({'max_seconds':float('inf')},[.2,2.]),
+               ({'max_seconds':float('nan')},[.2,2.]),
+               ({'max_seconds':True},[.2,2.]),
+               ({'total_seconds':True},[.2,2.]),
+               ({'starts':0},[.2,2.]),({'max_evaluations':1},[.2,2.]),
+               ({'max_nfev':2.5},[.2,2.]),({'seed':-1},[.2,2.]),
+               ({'background':'false'},[.2,2.]),
+               ({'compare_shared_decay':1},[.2,2.]),
+               ({},[.2,float('inf')]),({},[2.,.2])]
+        with tempfile.TemporaryDirectory() as temp:
+            for settings,bounds in cases:
+                with self.subTest(settings=settings,bounds=bounds), \
+                     patch.object(band_relaxation,'load_group_averages',return_value=self.fixture()), \
+                     patch('zulf_tools.analysis.recipe',side_effect=AssertionError('Preprocessing started')) as recipe:
+                    with self.assertRaises(ValueError):
+                        band_relaxation.fit_frequency_decay('fixture',[[26,34]],[0,1],[2,3],
+                            t2_bounds=bounds,components=[1],settings=settings,
+                            record={},directory=Path(temp),cancel=lambda:False,progress=lambda *args:None)
+                    recipe.assert_not_called()
+
     def test_cancel_after_candidate_keeps_numeric_prediction(self):
         cancelled=[False]
         def progress(*args):cancelled[0]=True
