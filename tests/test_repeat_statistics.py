@@ -1,9 +1,30 @@
 import unittest
 import numpy as np
-from zulf_tools.repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility,spectral_coherence
+from zulf_tools.repeat_statistics import weighted_repeat_statistics,accumulation_diagnostic,classify_reproducibility,spectral_coherence,residual_repeat_diagnostic
 
 
 class RepeatStatisticsTests(unittest.TestCase):
+    def test_reproducible_model_error_is_not_hidden_by_repeat_noise(self):
+        rng=np.random.default_rng(602);truth=np.exp(1j*np.linspace(0,2,64));counts=np.full(8,10)
+        noise=(rng.normal(size=(16,64))+1j*rng.normal(size=(16,64)))*.03
+        d=truth+noise[:8];v=truth+noise[8:]
+        good=residual_repeat_diagnostic(d,counts,v,counts,truth)
+        self.assertFalse(good['requires_review'])
+        wrong=truth-.2*np.sin(np.linspace(0,np.pi,64))
+        bad=residual_repeat_diagnostic(d,counts,v,counts,wrong)
+        self.assertTrue(bad['requires_review']);self.assertTrue(bad['reproducible_residual'])
+        self.assertGreater(bad['residual_alignment'],.9)
+        tiled=residual_repeat_diagnostic(np.tile(d,(1,5)),counts,np.tile(v,(1,5)),counts,np.tile(wrong,5))
+        self.assertAlmostEqual(tiled['validation_residual_to_sem'],bad['validation_residual_to_sem'])
+
+    def test_missing_or_zero_scatter_is_not_a_confidence_claim(self):
+        y=np.ones((2,8),complex)
+        missing=residual_repeat_diagnostic(y[:1],[1],y,[1,1],np.ones(8))
+        self.assertFalse(missing['available'])
+        zero=residual_repeat_diagnostic(y,[1,1],y,[1,1],np.zeros(8))
+        self.assertFalse(zero['available']);self.assertTrue(zero['requires_review'])
+        self.assertIsNone(zero['validation_residual_to_sem'])
+
     def test_band_phase_cancellation_without_bin_count_snr_inflation(self):
         reference=np.array([1.,2.,3.],complex);phases=np.array([-np.pi/3,np.pi/3])
         spectra=np.exp(1j*phases[:,None])*reference

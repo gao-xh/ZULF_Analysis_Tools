@@ -99,3 +99,27 @@ def spectral_coherence(spectra,counts,reference,single_scan_variance,threshold=5
     return dict(coherent_to_mean_group_norm=float(np.clip(np.linalg.norm(pooled)/denominator,0,1)) if denominator>0 else None,
         group_diagnostics=rows,shape_overlap_threshold=.8,rms_signal_to_scatter_threshold=threshold,
         note='Descriptive coherence includes noise, phase and spectral-shape differences. No alignment or independent-bin significance claim.')
+
+
+def residual_repeat_diagnostic(discovery,discovery_counts,validation,validation_counts,prediction,threshold=3.):
+    """Band residual norms versus empirical mean uncertainty; not a chi-square test."""
+    if len(discovery)<2 or len(validation)<2:
+        return dict(available=False,requires_review=False,status='insufficient_repeat_groups')
+    d=weighted_repeat_statistics(discovery,discovery_counts);v=weighted_repeat_statistics(validation,validation_counts)
+    prediction=np.asarray(prediction,complex)
+    if prediction.shape!=d['mean'].shape or v['mean'].shape!=prediction.shape or not np.isfinite(prediction).all() or not np.isfinite(threshold) or threshold<=0:
+        raise ValueError('Invalid residual prediction or threshold.')
+    rd=d['mean']-prediction;rv=v['mean']-prediction
+    nd=float(np.linalg.norm(rd));nv=float(np.linalg.norm(rv))
+    sd=float(np.linalg.norm(d['standard_error']));sv=float(np.linalg.norm(v['standard_error']))
+    floor=np.finfo(float).eps*max(float(np.linalg.norm(d['mean'])),float(np.linalg.norm(v['mean'])),1.)*100
+    ratios=[nd/sd if sd>floor else None,nv/sv if sv>floor else None]
+    mismatch=nv>threshold*max(sv,floor)
+    alignment=float(np.clip(np.vdot(rd,rv).real/(nd*nv),-1,1)) if min(nd,nv)>floor else None
+    repeated=bool(mismatch and nd>threshold*max(sd,floor) and alignment is not None and alignment>.5)
+    return dict(available=bool(sd>floor and sv>floor),requires_review=bool(mismatch),
+        status='reproducible_unmodelled_structure' if repeated else 'validation_residual_exceeds_repeat_scatter' if mismatch else 'no_large_residual_flag',
+        discovery_residual_to_sem=ratios[0],validation_residual_to_sem=ratios[1],
+        discovery_residual_norm=nd,validation_residual_norm=nv,discovery_sem_norm=sd,validation_sem_norm=sv,
+        residual_alignment=alignment,reproducible_residual=repeated,ratio_threshold=threshold,
+        note='Band norm ratios are operational diagnostics, not p values or independent-bin chi-square statistics. Discovery residual is in-sample; validation prediction is frozen.')

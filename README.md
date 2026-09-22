@@ -475,3 +475,21 @@ prove two components coexist in either acquisition. Stationary fits to a chirp
 can converge with clean numerical flags while biasing T2* and retaining a
 structured residual. These counterexamples motivate independent group and
 residual checks; they do not establish drift in a particular experiment.
+
+
+Evidence review now also recomputes the candidate's frozen complex residual
+against source-verified discovery and validation group spectra. At least two
+groups per role are required. Residual norms are divided by empirical
+scan-count-weighted mean-SEM norms, without pretending native bins are independent.
+A validation ratio above 3 is an operational mismatch flag. When both roles
+exceed that threshold and their real complex-vector alignment exceeds 0.5,
+the report records reproducible unmodelled structure. Zero/insufficient scatter
+is explicit and cannot create a confidence claim.
+
+`residual_evidence.npz` and independent residual-versus-scatter and real/imaginary
+reproducibility figures preserve the evidence. `band_model_residual_unresolved`
+prevents an otherwise stable candidate from receiving a supported label.
+This applies to the combined band model and does not establish which mode is
+wrong. Conversely, a ratio below the threshold does not establish adequacy,
+especially when repeat scatter is inflated by drift. These are diagnostic
+ratios, not chi-square tests, p values or physical acceptance criteria.

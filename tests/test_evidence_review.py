@@ -32,12 +32,16 @@ class EvidenceTests(unittest.TestCase):
             summary=dict(status='conditional_descriptive_percentiles',t2star_percentiles_s=[[.99],[1.],[1.01]]))
         other=dict(parent,candidates=[dict(candidate,t2star_s=[1.07])])
         records=dict(fit=parent,signal=signal,stable=stability,sample=sample,other=other)
-        with tempfile.TemporaryDirectory() as tmp, patch('zulf_tools.evidence_review.storage.get_result',side_effect=records.__getitem__), patch('zulf_tools.evidence_review.load_group_averages',return_value=(None,None,dict(arrays_sha256='abc',sampling_rate_hz=1000))):
+        residual=dict(available=True,requires_review=False,status='no_large_residual_flag')
+        with tempfile.TemporaryDirectory() as tmp, patch('zulf_tools.evidence_review.storage.get_result',side_effect=records.__getitem__), patch('zulf_tools.evidence_review.load_group_averages',return_value=(None,None,dict(arrays_sha256='abc',sampling_rate_hz=1000))), patch('zulf_tools.evidence_review.candidate_residual_evidence',return_value=residual):
             args=dict(fit_run_id='fit',signal_run_ids=['signal'],stability_run_id='stable',resampling_run_ids=['sample'],comparison_refs=[dict(run_id='other',candidate_index=0)],record={},directory=Path(tmp),cancel=lambda:False,progress=lambda *_:None)
             row=review_decay_evidence(**args)['modes'][0]
             self.assertEqual(row['interpretation_status'],'model_sensitive_candidate')
             self.assertEqual(row['sensitivity_comparisons'][0]['outside_sampling_ranges'],['sample'])
             self.assertFalse(row['physical_component_accepted'])
+            residual['requires_review']=True
+            self.assertEqual(review_decay_evidence(**args)['modes'][0]['interpretation_status'],'band_model_residual_unresolved')
+            residual['requires_review']=False
             sample['summary']['status']='insufficient_or_unstable_resampling'
             self.assertEqual(review_decay_evidence(**args)['modes'][0]['interpretation_status'],'unstable_decay')
             stability['candidate_index']=1
