@@ -657,3 +657,13 @@ intervals. Unsupported T2* values are withheld and listed in the figure note.
 The plot does not interpolate between modes or infer a continuous relaxation
 distribution. An unresolved-model or unstable label remains visible even when
 the candidate has a small numerical fitting error.
+
+Run `python -m examples.validate_resampling_coverage` for a finite synthetic
+check of conditional group-bootstrap percentiles. It creates 40 paired datasets
+at each of two group-noise correlations, with eight equal-weight groups and
+60 draws per dataset. The true single-mode model is fixed. Independent time
+noise and a common time-noise component are generated explicitly; no correlation
+is estimated from experiment. All group FIDs, draw plans, fit flags and individual
+intervals are retained locally. The example illustrates why small resampling
+widths cannot establish calibrated experimental coverage when common group noise
+or model error is unaccounted for; it does not tune the method to nominal coverage.
