@@ -626,3 +626,16 @@ still omit candidates, but one band's complex comparisons no longer take
 priority over another band's simplest requested baseline. Time budgets are
 cooperatively checked at fit boundaries/evaluations; preprocessing, plotting,
 a single expensive evaluation and final artifact writes are not preempted.
+
+Oscillatory-mode fits also return an `initialization` record and `start_attempts`.
+These distinguish discovery-spectrum seeds from explicit frequencies and retain
+each attempted start's clipped frequencies, T2* values, search strategy, actual
+evaluation count and termination reason. `best_start_index` and `best_evaluation`
+identify the retained best trial, including finite-difference evaluations.
+`completed_starts` still counts optimizer endpoints, whether converged or not;
+`attempted_starts` also includes a budget-interrupted attempt. Unattempted starts
+are not invented. This ledger is written with a returned fit; it is not a live
+optimizer checkpoint or recovery mechanism after process termination. Cancellation
+continues to retain previously saved operation artifacts rather than returning a
+successful fit. Fixed-transition and magnitude-refit solvers retain their separate
+existing histories; this ledger describes the shared oscillatory-mode solver.

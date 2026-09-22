@@ -140,7 +140,7 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
         if cancel():
             raise InterruptedError('Decay fit cancelled.')
         if evaluations >= max_evaluations or (evaluations and time.perf_counter()-start_time >= max_seconds):
-            raise _BudgetReached()
+            raise _BudgetReached('max_evaluations' if evaluations >= max_evaluations else 'max_seconds')
         evaluations += 1
         frequencies, taus = decode(x)
         design = mode_design(processor,frequencies,taus,background)
@@ -149,10 +149,11 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
         score = float(np.mean(residual**2))
         if best is None or score < best['score']:
             best = dict(score=score,x=x.copy(),fitted=fitted,coefficients=coefficients,
-                        rank=rank,condition=condition)
+                        rank=rank,condition=condition,start_index=start,evaluation=evaluations)
         return residual
 
     stopped = False
+    attempts = []
     for start in range(starts):
         fraction = (start+.5)/starts
         trial_f = seeds.copy()
@@ -163,12 +164,23 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
                        seeds+rng.normal(0,max((hi-lo)/20,1/(processor.n/processor.fs)),mode_count))
         x = np.r_[trial_f,np.full(tau_count,np.log(t2_bounds[0])*(1-fraction)+np.log(t2_bounds[1])*fraction)]
         x = np.clip(x,lower+1e-10,upper-1e-10)
+        initial_f, initial_t = decode(x)
+        attempt = dict(start_index=start, initial_frequencies_hz=initial_f.tolist(),
+                       initial_t2star_s=initial_t.tolist(),
+                       strategy='seed' if start == 0 else 'uniform_band' if start%3 == 0 else 'local_perturbation')
+        before = evaluations
         try:
             solution = least_squares(evaluate,x,bounds=(lower,upper),x_scale='jac',
                                      max_nfev=max_nfev,ftol=1e-8,xtol=1e-8,gtol=1e-8)
-        except _BudgetReached:
+        except _BudgetReached as exc:
+            attempt.update(status='budget_exhausted', stop_reason=str(exc),
+                           evaluations=evaluations-before)
+            attempts.append(attempt)
             stopped = True
             break
+        attempt.update(status='converged' if solution.success else 'optimizer_stopped',
+                       stop_reason=str(solution.message), evaluations=evaluations-before)
+        attempts.append(attempt)
         frequencies, taus = decode(solution.x)
         history.append({'score':float(np.mean(solution.fun**2)),
                         'frequencies_hz':frequencies.tolist(),'t2star_s':taus.tolist(),
@@ -197,5 +209,10 @@ def fit_modes(processor, observed, frequency_bounds, t2_bounds, mode_count=1,
             'linear_condition_number':best['condition'],'optimizer_converged':converged,
             'budget_exhausted':stopped,'evaluations':evaluations,'elapsed_s':time.perf_counter()-start_time,
             'completed_starts':len(history),'candidates':history,'shared_decay':shared_decay,
+            'initialization':{'source':'discovery_spectrum' if initial_frequencies is None else 'explicit',
+                              'seed_frequencies_hz':seeds.tolist(),'random_seed':seed},
+            'start_attempts':attempts,'attempted_starts':len(attempts),
+            'best_start_index':best['start_index'],'best_evaluation':best['evaluation'],
+            'start_ledger_note':'Zero-based start indices; evaluations include finite-difference trials. A budget-stopped attempt may have zero evaluations. Completed starts include optimizer endpoints without convergence. Unattempted starts are not recorded.',
             'fitted':best['fitted'],
             'interpretation':'Phenomenological effective FID modes, not intrinsic T2 or substance assignments.'}

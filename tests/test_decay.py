@@ -44,8 +44,28 @@ class DecayTests(unittest.TestCase):
         limited=fit_modes(p,y,[35,45],[.1,2.],max_evaluations=2,starts=2)
         self.assertTrue(limited['budget_exhausted'])
         self.assertFalse(limited['optimizer_converged'])
+        self.assertEqual(limited['completed_starts'],0)
+        self.assertEqual(limited['attempted_starts'],1)
+        self.assertEqual(limited['start_attempts'][0]['status'],'budget_exhausted')
+        self.assertEqual(limited['start_attempts'][0]['stop_reason'],'max_evaluations')
+        self.assertEqual(limited['start_attempts'][0]['evaluations'],2)
+        self.assertEqual(limited['best_start_index'],0)
+        self.assertLessEqual(limited['best_evaluation'],2)
         result=fit_modes(p,y,[35,45],[.1,2.],starts=2)
         self.assertTrue(any('t2' in key for key in result['boundary_hits']))
+
+    def test_start_ledger_reproduces_automatic_and_explicit_initialization(self):
+        p,y=self.fixture([(40.17,.74,1.4,1.1)])
+        auto=fit_modes(p,y,[35,45],[.1,3.],starts=4,seed=371)
+        explicit=fit_modes(p,y,[35,45],[.1,3.],starts=4,seed=371,
+                           initial_frequencies=auto['initialization']['seed_frequencies_hz'])
+        self.assertEqual(auto['initialization']['source'],'discovery_spectrum')
+        self.assertEqual(explicit['initialization']['source'],'explicit')
+        self.assertEqual(auto['start_attempts'],explicit['start_attempts'])
+        self.assertEqual(sum(a['evaluations'] for a in auto['start_attempts']),auto['evaluations'])
+        self.assertEqual([a['strategy'] for a in auto['start_attempts']],
+                         ['seed','local_perturbation','local_perturbation','uniform_band'])
+        np.testing.assert_array_equal(auto['fitted'],explicit['fitted'])
 
     def test_two_distinct_decays_with_independent_time_noise(self):
         fs=512.; n=4096; t=np.arange(n)/fs; first=70; last=3700
