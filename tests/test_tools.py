@@ -164,6 +164,21 @@ class ToolsTests(unittest.TestCase):
         self.assertAlmostEqual(result['candidates'][0]['frequency_hz'],40.,delta=.6)
         self.assertEqual(result['candidates'][0]['classification'],'reproducible_signal_candidate')
         self.assertTrue(storage.artifact(result['run_id'],'repeat_signal_arrays.npz').exists())
+        args=dict(group_run_id=grouped['run_id'],ranges=[[35,45]],discovery_groups=[0,1],validation_groups=[2,3],sg_window=31)
+        crop=analysis.execute('inspect_fid_crops',args)
+        self.assertEqual(crop['candidate_intervals'][0]['start_s'],0.)
+        with np.load(storage.artifact(crop['run_id'],'crop_diagnostics.npz')) as arrays:
+            expected=np.mean(self.originals[:2],axis=0)
+            np.testing.assert_allclose(arrays['discovery_raw_fid'],expected)
+            np.testing.assert_allclose(arrays['discovery_processed_fid'],expected-savgol_filter(expected,31,2,mode='mirror'),atol=1e-10)
+        from zulf_tools.repeats import load_group_averages
+        means,counts,source=load_group_averages(grouped['run_id'])
+        means=means.copy();means[2:]*=-10
+        with patch('zulf_tools.crop_diagnostics.load_group_averages',return_value=(means,counts,source)):
+            changed=analysis.execute('inspect_fid_crops',args)
+        self.assertEqual([(r['start_s'],r['end_s']) for r in crop['candidate_intervals']],
+                         [(r['start_s'],r['end_s']) for r in changed['candidate_intervals']])
+        self.assertTrue(storage.artifact(crop['run_id'],'tail_processed_fid.png').exists())
 
     def test_bad_files_and_changed_source_rejected(self):
         m = data.inventory(self.source)
@@ -238,7 +253,8 @@ class TransportTests(unittest.TestCase):
                     self.assertIn('fit_simulated_decay',{tool.name for tool in listed.tools})
                     self.assertIn('resample_decay_groups',{tool.name for tool in listed.tools})
                     self.assertIn('review_decay_evidence',{tool.name for tool in listed.tools})
-                    self.assertEqual(len(listed.tools),24)
+                    self.assertIn('inspect_fid_crops',{tool.name for tool in listed.tools})
+                    self.assertEqual(len(listed.tools),25)
                     bad = await session.call_tool('get_result',{'run_id':'../bad'})
                     self.assertTrue(bad.isError)
         asyncio.run(check())

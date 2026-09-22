@@ -26,6 +26,7 @@ Every graph is its own PNG, and numerical arrays are stored alongside it.
 | `fit_window_decay` | Refit complex Hann observations with matched processing, frozen validation and native FFT cross-checks. |
 | `fit_simulated_decay` | Fit bounded decays of complete fixed-J transition groups with explicit model provenance and conditional validation. |
 | `resample_decay_groups` | Resample discovery-group means with saved circular-block draws, bounded refits and conditional percentile diagnostics. |
+| `inspect_fid_crops` | Propose discovery-only time crops from baseline and complete-window band diagnostics; retain full-record comparison and inspect held-out tails. |
 | `review_decay_evidence` | Link a decay candidate to compatible signal, group, resampling and sensitivity evidence; expose missing or conflicting evidence without physical acceptance. |
 | `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
 | `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
@@ -160,7 +161,7 @@ the Codex connection after updating an already running server.
 
 Two further tools now build natural-abundance isopropylamine skeleton models and
 fit candidate J values to saved experimental complex spectra. The server exposes
-24 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
+25 tools including `review_decay_evidence`, `resample_decay_groups`, `fit_simulated_decay`, `fit_window_decay`, `inspect_decay_stability`, `inspect_repeat_signals`, `inspect_decay_time_frequency`, `fit_frequency_decay`, `compute_group_averages` and `fit_isopropylamine_staged`, which anchors the methyl high band
 before fitting the overlapping methine component. See [J_FITTING.md](J_FITTING.md) for the explicit
 model assumptions, parameter mapping, optimizer and interpretation limits.
 
@@ -322,3 +323,32 @@ The result records both `parent_t2_bounds_s` and actual `t2_bounds_s`, plus
 `t2_bounds_overridden`. Keep the original run and change bounds explicitly;
 a boundary-free solution is still not evidence of model adequacy. Band ranges,
 source groups, preprocessing and validation remain inherited from the parent.
+
+
+## FID crop diagnostics
+
+`inspect_fid_crops` takes a `group_run_id`, frequency `ranges`, disjoint
+`discovery_groups` and `validation_groups` (at least two each), optional
+`sg_window`/`sg_order`, `width_s` (default 0.25) and `snr_threshold` (default 5).
+It retains the first sample and acquisition time; SG means full-record mirror
+baseline subtraction. No trimming, alignment or mean removal is performed.
+Each band needs two native bins per complete nonoverlapping Hann window.
+
+Outputs include independent full/early/tail raw and processed FID figures,
+local baseline and window band-amplitude/SEM-ratio figures, diagnostic arrays,
+and up to five candidate intervals. Starts use a heuristic raw-baseline
+recovery check against the final quarter of blocks and an SG half-window guard,
+capped at min(1 second, 10% of record). A raw baseline that recovers later than
+that cap rejects the baseline-based start rule and falls back to the earlier
+SG guard (or zero), rather than discarding early signal up to the cap.
+Tail references may contain real signal
+or drift. End proposals retain the last discovery-supported window plus one
+window margin; a later revival prevents an earlier cutoff. No detected signal
+keeps the full endpoint. Full data are always included as a baseline candidate.
+
+Held-out groups do not determine proposals; their supported windows beyond each
+suggested endpoint are reported separately. These ratios are operational
+repeat-scatter diagnostics, not significance levels. Short windows mix nearby
+peaks and leakage, and band RMS is not an exponential envelope. Compare the
+proposed fits under identical processing before adopting any crop; preserve
+failed and sensitive results. Plots use display subsampling only.

@@ -7,6 +7,19 @@ mcp = FastMCP('ZULF Analysis Tools')
 
 
 @mcp.tool()
+def inspect_fid_crops(group_run_id: str, ranges: list[list[float]], discovery_groups: list[int],
+                      validation_groups: list[int], sg_window: int = 0, sg_order: int = 2,
+                      width_s: float = .25, snr_threshold: float = 5.) -> dict:
+    """Propose discovery-only crop alternatives and inspect held-out tails without trimming.
+    Separate raw/processed full, early and tail FID figures; complete Hann-window
+    band diagnostics. Proposals are heuristics, not proven clean intervals.
+    """
+    return jobs.start_analysis('inspect_fid_crops',dict(group_run_id=group_run_id,ranges=ranges,
+        discovery_groups=discovery_groups,validation_groups=validation_groups,sg_window=sg_window,
+        sg_order=sg_order,width_s=width_s,snr_threshold=snr_threshold))
+
+
+@mcp.tool()
 def review_decay_evidence(fit_run_id: str, candidate_index: int = 0,
                            signal_run_ids: list[str] | None = None, stability_run_id: str | None = None,
                            resampling_run_ids: list[str] | None = None, comparison_refs: list[dict] | None = None,
