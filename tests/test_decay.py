@@ -73,6 +73,28 @@ class DecayTests(unittest.TestCase):
         self.assertIn('rank_deficient_amplitude_design',diagnostic['numerical_warning_flags'])
         self.assertEqual(diagnostic['sub_bin_frequency_pairs'][0]['mode_indices'],[0,1])
 
+    def test_same_frequency_distinct_decays_can_recover_without_noise(self):
+        p, y = self.fixture([(40.25, .25, .6, .4), (40.25, 1.4, 1., .4)])
+        result = fit_modes(p, y, [35, 45], [.1, 3.], mode_count=2,
+                           initial_frequencies=[40.2, 40.3], starts=6,
+                           max_evaluations=5000, max_seconds=15)
+        np.testing.assert_allclose(result['frequencies_hz'], [40.25, 40.25], atol=1e-5)
+        np.testing.assert_allclose(sorted(result['t2star_s']), [.25, 1.4], atol=1e-4)
+        self.assertLess(result['relative_complex_residual'], 1e-7)
+        self.assertTrue(result['numerical_diagnostics']['sub_bin_frequency_pairs'])
+        # Frequency matching alone cannot label which decay is which here.
+
+    def test_close_same_frequency_decays_can_hide_below_noise(self):
+        p, y = self.fixture([(40.25, .9, .6, .4), (40.25, 1.1, 1., .4)])
+        single = fit_modes(p, y, [35, 45], [.1, 3.], starts=3, max_seconds=10)
+        self.assertTrue(.9 < single['t2star_s'][0] < 1.1)
+        # Independently generated time noise, transformed through the same crop.
+        noise = np.random.default_rng(381).normal(0, .025, 4096)[64:3600]
+        frequency = np.fft.rfftfreq(len(noise), 1 / 512.)
+        band_noise = np.fft.rfft(noise)[(frequency >= 35) & (frequency <= 45)] / len(noise)
+        self.assertLess(np.linalg.norm(y-single['fitted']), .3*np.linalg.norm(band_noise))
+        # This deterministic counterexample is not a significance/coverage test.
+
     def test_boundary_indices_follow_sorted_output_not_optimizer_order(self):
         p,y=self.fixture([(38.,.6,1.,.2),(43.,4.,1.,-.5)])
         result=fit_modes(p,y,[35,45],[.1,2.],mode_count=2,

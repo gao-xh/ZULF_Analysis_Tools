@@ -534,3 +534,25 @@ before removing that lock. These conservative stops prevent duplicate fits;
 they are not automatic recovery from a power failure. Numerical completion of
 the plan is not scientific acceptance, and repeated model selection on the same
 validation groups is exploratory rather than a fresh blind test.
+
+
+Same-frequency relaxation ambiguity can be reproduced with:
+
+```powershell
+.venv/Scripts/python.exe -m examples.validate_coincident_decays
+```
+
+This independent real-FID example compares one and two modes for coincident
+frequencies with well-separated or close decay times, with and without sampled
+time noise. Noiseless recovery of two decays is possible without frequency
+separation. With finite noise, two close decays can be approximated by one
+effective decay; an unconstrained extra oscillator can instead fit a noise
+feature. Numerical convergence and a lower in-sample residual do not establish
+a second physical relaxation component. Frequency matching cannot label two
+coincident modes; compare unordered decay sets and retain uncertainty.
+
+`components` in the frequency-fit interface counts damped oscillatory terms.
+It does not directly count substances or relaxation mechanisms. Neither a
+four-frequency fit nor a small conditional resampling spread proves four
+physical decay components. Independent repeat support, frozen residual checks,
+processing sensitivity and an appropriate forward model remain necessary.
