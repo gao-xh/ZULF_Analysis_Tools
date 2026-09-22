@@ -1,0 +1,151 @@
+# ZULF Analysis Tools
+
+A Codex-centered local analysis project. Tell Codex the scientific question;
+Codex calls typed analysis tools, inspects independent figures, and discusses
+evidence with you. Python performs the computation. No OpenAI API key or separate
+model API is required by this backend.
+
+## Version 0.1 workflow
+
+`inspect_dataset → compute_average → compare_preprocessing → inspect_frequency_ranges`
+
+The first release establishes data fidelity and reproducible processing before
+automated decay interpretation. It is independent of the previous desktop apps.
+Tools return JSON manifests, opaque run IDs and absolute local artifact paths.
+Every graph is its own PNG, and numerical arrays are stored alongside it.
+
+| Tool | Behavior |
+| --- | --- |
+| `inspect_dataset` | Check numbered DAT/INI files, sample rate, lengths, sample statistics and compiled-reference metadata. |
+| `compute_average` | Stream selected raw FIDs into a coherent mean; hash inputs and compare any compiled reference. |
+| `compare_preprocessing` | Compare explicit time crops and SG baseline subtraction recipes on an existing average. |
+| `inspect_frequency_ranges` | Plot each recipe in selected bands, with local vertical scaling, and rank local maxima. |
+| `start_analysis` | Start any operation as a persistent background job. |
+| `get_job` | Query progress, failure/cancellation, or completed result. |
+| `cancel_job` | Request cancellation at the next file/recipe checkpoint. |
+| `get_result` | Retrieve a completed analysis manifest without recomputation. |
+
+MCP averaging, preprocessing and frequency inspection return a job ID immediately.
+Direct MCP inspection is synchronous; use `start_analysis` for large inventories.
+The CLI provides both direct execution and the same background-job API. Job
+requests/status/logs survive client reconnection. A machine restart or externally
+killed worker can leave its last status as running; inspect `worker.log` and the
+recorded PID rather than treating that as ongoing progress. Automatic recovery
+and durable job resumption are not implemented yet.
+
+## Installation and Codex connection
+
+Use Python 3.10+ in a project virtual environment:
+
+```powershell
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -e .
+```
+
+Copy `local.example.json` to `local.json` and set only the experimental input
+directories to be analyzed. Those directories are read-only to the tool code.
+All outputs go to `.analysis/`, excluded from Git. There is no arbitrary shell
+execution or source-file write operation among the exposed tools.
+
+Register the local STDIO server using absolute paths:
+
+```powershell
+codex mcp add zulf-analysis-tools -- C:/path/to/project/.venv/Scripts/python.exe C:/path/to/project/run_server.py
+```
+
+The adapter uses the official MCP Python SDK v1 maintenance line (`mcp<2`),
+tested with 1.30.0. The currently configured environment reuses the existing
+scientific packages through a local virtual environment; SDK dependencies are
+installed only into that environment. Other machines should use a normal clean
+environment as shown above.
+
+Follow the [official Codex MCP configuration documentation](https://developers.openai.com/codex/mcp)
+to manage STDIO servers. A newly registered server may require a new session or
+client reload before its tools appear; registration alone does not prove the
+current conversation's active tool catalog has refreshed. The CLI remains usable:
+
+```powershell
+.venv/Scripts/python.exe -m zulf_tools.cli --request examples/inspect.json
+```
+
+CLI request shape is `{"tool": "get_job", "arguments": {"job_id": "..."}}`.
+Omit `--request` to send JSON through stdin. Successful calls emit JSON to stdout;
+errors return a JSON error and a nonzero exit code. Run IDs refer to completed
+artifacts; job IDs refer to asynchronous execution. Do not interchange them.
+
+## Suggested first conversation
+
+Ask Codex to inspect a folder, average the chosen scan IDs, compare raw versus
+explicit baseline/crop recipes, and show the 115–140 Hz band. Review the original
+mean and early-time transient before selecting a processing recipe.
+
+Example preprocessing recipes:
+
+```json
+[
+  {"label": "Raw mean", "start_s": 0, "sg_window": 0},
+  {"label": "SG baseline 301", "start_s": 0, "sg_window": 301, "sg_order": 2},
+  {"label": "Crop 50 ms", "start_s": 0.05, "sg_window": 0},
+  {"label": "SG then crop 50 ms", "start_s": 0.05, "sg_window": 301, "sg_order": 2}
+]
+```
+
+These are comparison examples, not validated scientific defaults. Operation order
+is SG baseline subtraction on the complete averaged FID using mirror edges,
+then crop, then optional constant-mean removal (default true). SG means
+`FID - savgol_filter(FID)`, not replacing the FID with its smoothed baseline.
+No apodization, interpolation, zero filling, automatic alignment, resampling or
+normalization of individual acquisitions is performed.
+
+## Data fidelity and limits
+
+- Decoder: reverse bytes, little-endian int16, retain `[20:-2]`, reverse samples.
+  This reproduces `signal_selection`'s convention; it is not a verified hardware
+  format specification. Configuration-vs-decoded length differences are reported.
+  The first decoded point is retained explicitly.
+- Original scan IDs mean the names in the selected directory; a previously
+  exported selection may have renamed files. Do not assume original acquisition
+  chronology without checking the selection report.
+- Sampling rate comes from `0.ini [NMRduino] SampleRate`. Available per-scan INI
+  files must agree. The schema does not assert all other experimental conditions
+  were identical. Missing per-scan INI files are reported.
+- Inspection fingerprints paths, size, modification time and INI content. Averaging
+  additionally hashes every DAT payload and rechecks the inventory at completion.
+  It never silently trims mismatched scans. Local artifacts are verified before
+  reuse. Reusing a completed average means analyzing that recorded snapshot;
+  it does not claim the source folder has remained unchanged since the run.
+- Configured input folders remain untouched. No experiments, means or reports
+  are sent to GitHub. MCP responses contain summaries and local artifact paths.
+  Data shared with the Codex conversation is subject to the user's Codex settings.
+- Mean FIDs and recipes are persisted for reuse; automatic content-addressed
+  cache lookup is not implemented. Pass the existing run ID to avoid recomputing.
+- Plots can be display-sampled; numerical FFTs use all retained samples. Each band
+  plot contains only that band, so outside peaks cannot inflate its y-axis.
+- Range maxima are exploratory, including noise. No significance threshold, SNR
+  scaling validation, substance identification or decay fitting is included yet.
+  Those will be added after reproducing the user's trusted processing workflow.
+
+Each run saves parameters, source/parent provenance, software versions and an
+implementation hash. Failed/cancelled runs retain their status and partial files
+but cannot be consumed as completed results. Numerical work uses float64.
+
+## Verification
+
+```powershell
+.venv/Scripts/python.exe -m unittest discover -s tests -v
+```
+
+Tests cover independent DAT fixtures, exact streaming means, input preservation,
+sample-rate/length rejection, recorded time origins, SG baseline subtraction,
+artifact integrity, cancellation, range peak recovery and real MCP STDIO
+initialization/list/call behavior. Synthetic tests do not establish physical
+interpretations of experimental spectra.
+
+## Next milestones
+
+1. Reproduce the trusted isopropylamine spectrum, including the first-point offset.
+2. Add reviewed transient/baseline diagnostics and batch/scan accumulation checks.
+3. Add candidate discovery with defensible noise estimation and explicit peak review.
+4. Expose decay models with consistent processing of both observations and model.
+
+Keep legacy applications available for comparison throughout this transition.
