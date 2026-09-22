@@ -47,7 +47,9 @@ def fit_frequency_decay(group_run_id: str, ranges: list[list[float]],
     default [1,2]. Group indices are zero-based and disjoint. preprocessing uses
     the explicit SG-baseline/crop recipe. Settings: starts, max_nfev,
     max_evaluations, max_seconds per fit, total_seconds, seed,
-    compare_shared_decay, background. Validation freezes discovery predictions;
+    compare_shared_decay, background, initial_frequencies_hz. Explicit initial
+    frequencies require one component count and one frequency list per band;
+    they initialize the search without fixing frequencies. Validation freezes discovery predictions;
     conditional gain refits are diagnostics only. No automatic physical assignment.
     """
     return jobs.start_analysis('fit_frequency_decay',dict(group_run_id=group_run_id,

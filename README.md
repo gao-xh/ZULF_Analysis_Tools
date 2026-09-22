@@ -170,6 +170,15 @@ Keep legacy applications available for comparison throughout this transition.
 
 ## Range-restricted relaxation development
 
+For reproducible comparisons with a single requested mode count, pass
+`settings.initial_frequencies_hz` as one list per frequency band, for example
+`[[133.4, 134.8, 136.5], [246.1, 250.1, 254.0]]` with `components: [3]`.
+These are starting points, not fixed frequencies or a physical assignment.
+Bounds and multistart exploration remain active. Record the discovery-only
+source of starting values when comparing preprocessing variants; do not use
+validation data to choose them. Omit this setting for automatic initialization
+or when comparing several mode counts.
+
 The active requirements/evidence ledger is [RELAXATION_PLAN.md](RELAXATION_PLAN.md).
 `compute_group_averages` takes `folder` and `groups`, for example
 `[[0, 2, 4], [1, 3, 5]]` when those explicit scan IDs exist. It returns a

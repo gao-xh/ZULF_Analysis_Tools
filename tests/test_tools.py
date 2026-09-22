@@ -84,7 +84,10 @@ class ToolsTests(unittest.TestCase):
             arguments=dict(group_run_id=grouped['run_id'],ranges=[[35,45]],
                            discovery_groups=[0,1],validation_groups=[2],
                            t2_bounds=[.2,2.],components=[1],
-                           preprocessing={'start_s':.125},settings={'starts':2})
+                           preprocessing={'start_s':.125},settings={'starts':2,'initial_frequencies_hz':[[39.8]]})
+            for seeds in ([[50.]], [[39.,40.]], [], [[float('nan')]]):
+                with self.assertRaises(ValueError):
+                    analysis.execute('fit_frequency_decay',dict(arguments,settings={'initial_frequencies_hz':seeds}))
             with self.assertRaisesRegex(ValueError,'disjoint'):
                 analysis.execute('fit_frequency_decay',dict(arguments,validation_groups=[1]))
             fit=analysis.execute('fit_frequency_decay',arguments)

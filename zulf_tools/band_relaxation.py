@@ -43,10 +43,19 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
     if not isinstance(components,list) or not components or any(type(k) is not int or not 1<=k<=8 for k in components) or len(set(components))!=len(components):
         raise ValueError('components must be distinct integers from 1 to 8.')
     s=dict(starts=4,max_nfev=150,max_evaluations=3000,max_seconds=60.,
-           total_seconds=600.,seed=20260922,compare_shared_decay=True,background=False)
+           total_seconds=600.,seed=20260922,compare_shared_decay=True,background=False,
+           initial_frequencies_hz=None)
     if settings and set(settings)-set(s):
         raise ValueError('Unknown frequency-decay settings.')
     s.update(settings or {})
+    initial=s['initial_frequencies_hz']
+    if initial is not None:
+        if len(components)!=1 or not isinstance(initial,list) or len(initial)!=len(ranges):
+            raise ValueError('Explicit initial frequencies require one component count and one list per band.')
+        for seeds,(lo,hi) in zip(initial,ranges):
+            values=np.asarray(seeds,dtype=float)
+            if values.shape!=(components[0],) or not np.isfinite(values).all() or np.any((values<lo)|(values>hi)):
+                raise ValueError('Initial frequencies must match the mode count and lie inside their band.')
     if not np.isfinite(s['total_seconds']) or s['total_seconds']<=0 or type(s['compare_shared_decay']) is not bool:
         raise ValueError('Invalid total budget or compare_shared_decay flag.')
     spec=preprocessing or {}
@@ -101,6 +110,7 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
                 halted=True
                 break
             fit=fit_modes(p,observed,[lo,hi],t2_bounds,mode_count=modes,shared_decay=shared,
+                          initial_frequencies=None if initial is None else initial[band],
                           starts=s['starts'],max_nfev=s['max_nfev'],max_evaluations=s['max_evaluations'],
                           max_seconds=min(s['max_seconds'],remaining),seed=s['seed']+band*100+modes,
                           background=s['background'],cancel=cancel)

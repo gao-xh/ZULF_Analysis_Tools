@@ -138,3 +138,8 @@ optimization and exhausted budgets. Sorted output indices now identify the
 correct boundary parameters. Seven decay tests pass, including exact prediction
 with duplicate-mode rank deficiency and reversed optimizer mode ordering.
 This screen does not replace nonlinear uncertainty or physical validation.
+Milestone 9: the band tool accepts explicit per-band frequency initializations
+for one mode count, preserving bounded multistart optimization. Twelve transport
+and integration tests pass, including invalid/out-of-band/nonfinite seeds and
+frozen validation behavior. Common discovery-derived seeds are being evaluated
+across preprocessing variants; this does not assert a globally optimal fit.
