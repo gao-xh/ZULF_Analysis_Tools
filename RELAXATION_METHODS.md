@@ -123,3 +123,22 @@ a CLI/MCP background operation. It preserves the parent discovery/validation
 split and checks each window-domain candidate in the original FFT band as well.
 Phase-reversed held-out data verify that validation is not silently refitted.
 Method stability and physical acceptance require further experimental checks.
+## Fixed transition-group decay core
+
+`transition_decay.fit_transition_decay` keeps transition frequencies and their
+relative nonnegative weights fixed, retaining all supplied transitions in the
+finite-record processor. One cosine/sine pair represents the gain and phase of
+each group; shared or group-specific T2* values are the nonlinear parameters.
+Group order is preserved. Optional positive observation scales permit explicit
+band weighting, without modifying the underlying frozen prediction.
+
+Multistart log-T2* search counts finite-difference evaluations against an explicit
+budget and saves competing endpoints. Boundary groups, rank/conditioning,
+incomplete convergence and exhausted budgets remain visible. A clean numerical
+screen cannot validate preparation weights, J values, or intrinsic T2.
+
+Four tests independently construct sampled weighted real FIDs, apply mirror SG,
+and check separate/shared decay and phase recovery. A deliberately shifted
+transition set retains substantial residual despite free decay times. Budget,
+boundary and invalid-weight cases are tested. CLI/MCP integration and comparisons
+of the preserved experimental J candidates are the next unfinished step.

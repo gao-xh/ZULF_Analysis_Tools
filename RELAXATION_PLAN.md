@@ -161,3 +161,8 @@ validation that must retain a large frozen window prediction error. Every run
 saves complex window arrays, independent figures and native FFT cross-checks.
 Exploratory low/high-band runs use finite per-fit budgets; numerical completion
 does not by itself establish a valid relaxation model.
+Milestone 13: fixed transition-group decay core passes four independent numerical
+tests. The model shares one gain/phase pair across each supplied weighted group,
+fits bounded shared/separate T2*, preserves all transition support and exposes
+budget/boundary/conditioning diagnostics. Experimental fixed-J tool integration
+remains open, including conditional-validation provenance for historical J fits.
