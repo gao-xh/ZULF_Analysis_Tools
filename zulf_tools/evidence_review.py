@@ -5,6 +5,44 @@ from . import storage
 from .repeats import load_group_averages
 
 
+def plot_candidate_map(rows, directory):
+    """Display reviewed candidates, never interpolate a relaxation distribution."""
+    from matplotlib.figure import Figure
+    fig=Figure(figsize=(10,5.7),layout='constrained')
+    ax=fig.add_subplot(111)
+    colors={'band_model_residual_unresolved':'#b36a08','unstable_decay':'#bb3344',
+            'model_sensitive_candidate':'#8855aa'}
+    shown=set();withheld=[]
+    for row in rows:
+        f=row['frequency_hz'];tau=row['candidate_t2star_s']
+        if tau is None:
+            withheld.append(f'{f:.3f} Hz')
+            continue
+        status=row['interpretation_status'];color=colors.get(status,'#315e8d')
+        label=status.replace('_',' ') if status not in shown else None
+        ax.scatter([f],[tau],s=60,color=color,label=label,zorder=3)
+        shown.add(status)
+        limits=row['stability_range_s']
+        if limits is not None:
+            # Group ranges need not contain the pooled candidate value.
+            ax.vlines(f,*limits,color=color,lw=2,alpha=.7)
+            ax.plot([f,f],limits,'_',color=color,markersize=9)
+        ax.annotate(f'{f:.3f} Hz',xy=(f,tau),xytext=(6,7),textcoords='offset points',fontsize=9)
+    ax.set_yscale('log')
+    ax.set_xlabel('Frequency (Hz)')
+    ax.set_ylabel('Candidate effective FID T2* (s)')
+    ax.set_title('Reviewed oscillatory candidates; no physical components accepted')
+    ax.grid(alpha=.2,which='both');ax.margins(x=.18,y=.25)
+    if shown:ax.legend(loc='best',fontsize=9)
+    else:
+        ax.set_ylim(.1,10.)
+        ax.text(.5,.5,'No signal-supported T2* candidates',ha='center',transform=ax.transAxes)
+    note='Vertical spans: diagnostic group-refit min/max, not confidence intervals.\nNo interpolation or continuous relaxation distribution.'
+    if withheld:note+='\nT2* withheld (insufficient signal evidence): '+', '.join(withheld)
+    fig.supxlabel(note,fontsize=9)
+    fig.savefig(directory/'frequency_t2star_evidence.png',dpi=150)
+
+
 def candidate_residual_evidence(parent,candidate,means,counts,source,directory,cancel):
     from .analysis import recipe,plot
     from .jfit import ProcessedSpectrum
@@ -157,7 +195,10 @@ def review_decay_evidence(fit_run_id, candidate_index=0, signal_run_ids=None,
         rows.append(dict(mode_index=i,frequency_hz=float(f),candidate_t2star_s=candidate['t2star_s'][i] if supported else None,
             signal_evidence=supports[i],numerical_flags=flags,missing_evidence=missing,stability_range_s=group_range,
             sensitivity_comparisons=comparisons[i],band_residual_requires_review=residual['requires_review'],interpretation_status=status,physical_component_accepted=False))
-    lines=['# Decay candidate evidence review','','All statuses are operational review labels, not physical acceptance.','',
+    plot_candidate_map(rows,directory)
+    lines=['# Decay candidate evidence review','','All statuses are operational review labels, not physical acceptance.',
+           '', '![Frequency and candidate T2* evidence](frequency_t2star_evidence.png)',
+           '', 'Vertical spans show diagnostic group-refit ranges, not confidence intervals. Unsupported T2* values are withheld; no continuous distribution is inferred.', '',
            '| Frequency (Hz) | Candidate T2* (s) | Status | Missing evidence |','|---|---|---|---|']
     for r in rows: lines.append(f"| {r['frequency_hz']:.4f} | {r['candidate_t2star_s']} | {r['interpretation_status']} | {', '.join(r['missing_evidence'])} |")
     lines+=['',f"Band residual status: {residual['status']}",

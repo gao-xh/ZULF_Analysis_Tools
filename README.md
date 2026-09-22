@@ -649,3 +649,11 @@ Without external interference information, reproducibility alone can only label
 it a signal candidate. Even a supported signal never receives automatic physical
 component acceptance. Frequency matching to a detected peak is also required;
 additional fitted modes cannot borrow the same peak's support.
+
+Evidence review also writes an independent `frequency_t2star_evidence.png`.
+Points show signal-supported numerical candidates colored by review status;
+vertical spans are diagnostic group-refit min/max values, not confidence
+intervals. Unsupported T2* values are withheld and listed in the figure note.
+The plot does not interpolate between modes or infer a continuous relaxation
+distribution. An unresolved-model or unstable label remains visible even when
+the candidate has a small numerical fitting error.
