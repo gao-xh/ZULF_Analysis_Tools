@@ -1,5 +1,6 @@
 """Range-restricted effective decay analysis with disjoint-group evaluation."""
 import time
+import hashlib
 import numpy as np
 from . import storage
 from .repeats import load_group_averages
@@ -153,7 +154,16 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
                        validation_conditional_coefficients=group_coefficients,
                        conditional_refit_note='Fixed discovery frequencies/T2*, amplitudes and phases re-estimated for diagnostics only.',
                        artifact_prefix=key,scientifically_validated=False)
+            checkpoint=directory/(key+'_checkpoint.npz')
+            np.savez_compressed(checkpoint,frequency_hz=p.f,discovery=observed,
+                validation=held,prediction=prediction,group_spectra=spectra[:,bins],
+                discovery_scatter=arrays[f'band_{band}_discovery_scatter'])
+            fit['checkpoint_artifact']=checkpoint.name
+            fit['checkpoint_sha256']=hashlib.sha256(checkpoint.read_bytes()).hexdigest()
             records.append(fit)
+            # Publish only after the uniquely named numeric checkpoint closes.
+            # A subsequent cancellation or plotting failure retains this trial.
+            storage.write_json(directory/'candidates.json',records)
             for part,transform in [('magnitude',np.abs),('real',np.real),('imaginary',np.imag)]:
                 plot(directory/f'{key}_{part}.png',[(p.f,transform(observed),'Discovery mean'),
                      (p.f,transform(held),'Validation mean'),(p.f,transform(prediction),'Frozen prediction')],
@@ -162,7 +172,6 @@ def fit_frequency_decay(group_run_id, ranges, discovery_groups, validation_group
                  (p.f,(held-prediction).imag,'Validation imaginary residual')],
                  'Frequency (Hz)','Complex residual (ADC units)','Held-out prediction residual')
             work+=1; progress(work,total)
-            storage.write_json(directory/'candidates.json',records)
         if halted:
             break
     # Preserve the established completed-result candidate ordering. Progress

@@ -664,6 +664,17 @@ continues to retain previously saved operation artifacts rather than returning a
 successful fit. Fixed-transition and magnitude-refit solvers retain their separate
 existing histories; this ledger describes the shared oscillatory-mode solver.
 
+Each frequency-decay candidate also writes a uniquely named numeric checkpoint
+before publishing its entry in `candidates.json`. The entry records its filename
+and SHA-256; the archive contains native frequencies, discovery/validation spectra,
+the frozen prediction, group spectra and discovery scatter. Completed candidates
+therefore remain numerically reviewable if a later fit is cancelled or fails,
+even when the final aggregate `band_arrays.npz` was never written. Such candidates
+remain provisional; failed/cancelled runs are not accepted as completed parent
+analyses. These files do not resume an interrupted optimizer. An abrupt stop
+during a checkpoint write can leave an unreferenced incomplete archive; only
+published entries with matching hashes should be reviewed.
+
 Signal evidence and decay identifiability are separate gates. An end-to-end
 synthetic test runs the decoder, grouping, bounded fit, repeat-signal inspection
 and evidence report: an otherwise converged coherent oscillator loses reportable

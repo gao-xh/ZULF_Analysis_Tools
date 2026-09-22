@@ -1,4 +1,5 @@
 from pathlib import Path
+import hashlib
 from types import SimpleNamespace
 import tempfile
 import unittest
@@ -8,6 +9,27 @@ from zulf_tools import band_relaxation, storage
 
 
 class BandBudgetTests(unittest.TestCase):
+    def test_cancel_after_candidate_keeps_numeric_prediction(self):
+        cancelled=[False]
+        def progress(*args):cancelled[0]=True
+        with tempfile.TemporaryDirectory() as temp:
+            directory=Path(temp)
+            with patch.object(band_relaxation,'load_group_averages',return_value=self.fixture()),patch('zulf_tools.analysis.plot'):
+                with self.assertRaises(InterruptedError):
+                    band_relaxation.fit_frequency_decay('fixture',[[26,34],[54,68]],[0,1],[2,3],
+                        t2_bounds=[.2,2.],components=[1],settings=dict(starts=1),
+                        record={},directory=directory,cancel=lambda:cancelled[0],progress=progress)
+            rows=storage.read_json(directory/'candidates.json')
+            self.assertEqual(len(rows),1)
+            checkpoint=directory/rows[0]['checkpoint_artifact']
+            self.assertEqual(hashlib.sha256(checkpoint.read_bytes()).hexdigest(),rows[0]['checkpoint_sha256'])
+            with np.load(checkpoint) as a:
+                error=np.linalg.norm(a['validation']-a['prediction'])/np.linalg.norm(a['validation'])
+                self.assertAlmostEqual(error,rows[0]['validation_relative_complex_residual'])
+                np.testing.assert_allclose(a['validation'],a['group_spectra'][[2,3]].mean(axis=0))
+            self.assertFalse((directory/'band_arrays.npz').exists())
+            self.assertFalse(rows[0]['scientifically_validated'])
+
     def fixture(self):
         fs=256.;n=2048;t=np.arange(n)/fs
         fid=np.exp(-t)*np.cos(2*np.pi*30*t+.3)+.7*np.exp(-t/.8)*np.cos(2*np.pi*61*t-.5)
