@@ -145,7 +145,8 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     s = dict(initial=DEFAULT.copy(),bounds=BOUNDS.copy(),free_parameters=NAMES.copy(),
              starts=8,max_nfev=80,screening_samples=128,seed=20260922,bin_stride=2,
              rate_bounds=[.3,40.],initial_rate=4.,objective='complex',
-             isotopomers=['methine','methyl'],fixed_rates={})
+             isotopomers=['methine','methyl'],fixed_rates={},initial_rates={},rate_bounds_by_isotopomer={},
+             diff_step=1e-4)
     settings = settings or {}
     if set(settings)-set(s): raise ValueError('Unknown fitting settings.')
     s.update(settings)
@@ -154,6 +155,8 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     if not isinstance(active,list) or not active or len(set(active))!=len(active) or any(k not in ('methine','methyl') for k in active): raise ValueError('Invalid isotopomers.')
     if not isinstance(fixed_rates,dict) or any(k not in active or not np.isfinite(v) or v<=0 for k,v in fixed_rates.items()): raise ValueError('Invalid fixed_rates.')
     rate_names=[k for k in ('methine','methyl') if k in active and k not in fixed_rates]
+    if not isinstance(s['initial_rates'],dict) or set(s['initial_rates'])-set(active) or not isinstance(s['rate_bounds_by_isotopomer'],dict) or set(s['rate_bounds_by_isotopomer'])-set(active): raise ValueError('Invalid isotope rate settings.')
+    if not np.isfinite(s['diff_step']) or not 1e-7<=s['diff_step']<=.01: raise ValueError('Invalid finite difference step.')
     initial = dict(DEFAULT,**s['initial']); bounds = dict(BOUNDS,**s['bounds'])
     free = s['free_parameters']
     if not free or len(set(free)) != len(free) or any(k not in NAMES for k in free): raise ValueError('Invalid free J parameter list.')
@@ -167,6 +170,11 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
         if type(s[key]) is not int or not lo<=s[key]<=hi: raise ValueError('Invalid '+key)
     rb = s['rate_bounds']
     if len(rb)!=2 or not np.isfinite(rb).all() or not 0<rb[0]<rb[1] or not rb[0]<=s['initial_rate']<=rb[1]: raise ValueError('Invalid decay-rate bounds.')
+    rate_bounds={k:s['rate_bounds_by_isotopomer'].get(k,rb) for k in active}
+    rate_initial={k:s['initial_rates'].get(k,s['initial_rate']) for k in active}
+    for k in active:
+        b=rate_bounds[k]
+        if len(b)!=2 or not np.isfinite(b).all() or not 0<b[0]<b[1] or not np.isfinite(rate_initial[k]) or not b[0]<=rate_initial[k]<=b[1]: raise ValueError('Invalid isotope rate bounds/initial: '+k)
     parent = storage.get_result(comparison_run_id)
     if parent['operation']!='compare_preprocessing' or type(variant_index) is not int or not 0<=variant_index<len(parent['variants']): raise ValueError('Invalid comparison/variant.')
     variant = parent['variants'][variant_index]; params=variant['parameters']; fs=parent['sampling_rate_hz']
@@ -188,9 +196,9 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     # Equalize each band's energy so a weak second multiplet remains informative.
     band_scale=np.array([max(np.sqrt(np.mean(abs(y[membership==i])**2)),1e-15) for i in range(len(ranges))])
     scale=band_scale[membership]
-    lower=np.array([bounds[k][0] for k in free]+[np.log(rb[0])]*len(rate_names))
-    upper=np.array([bounds[k][1] for k in free]+[np.log(rb[1])]*len(rate_names))
-    x0=np.array([initial[k] for k in free]+[np.log(s['initial_rate'])]*len(rate_names))
+    lower=np.array([bounds[k][0] for k in free]+[np.log(rate_bounds[k][0]) for k in rate_names])
+    upper=np.array([bounds[k][1] for k in free]+[np.log(rate_bounds[k][1]) for k in rate_names])
+    x0=np.array([initial[k] for k in free]+[np.log(rate_initial[k]) for k in rate_names])
     def rates_for(x): return dict(fixed_rates,**dict(zip(rate_names,np.exp(x[len(free):]).tolist())))
     evaluations=0; best_score=float('inf'); history=[]
     def predict(x,detail=False):
@@ -251,7 +259,7 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     solutions=[]
     for i,x in enumerate(starts):
         fit=least_squares(predict,np.clip(x,lower+1e-9,upper-1e-9),bounds=(lower,upper),
-            x_scale='jac',diff_step=1e-4,max_nfev=s['max_nfev'],ftol=1e-7,xtol=1e-7,gtol=1e-7)
+            x_scale='jac',diff_step=s['diff_step'],max_nfev=s['max_nfev'],ftol=1e-7,xtol=1e-7,gtol=1e-7)
         score=float(np.mean(fit.fun**2)); solutions.append((score,fit))
         _,candidate_fitted,candidate_coef,_,_=predict(fit.x,True)
         history.append({'score':score,'parameters_hz':dict(initial,**dict(zip(free,fit.x[:len(free)]))),
@@ -281,6 +289,18 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
              (f[mask],abs((design[:,:2]@coef[:2])[mask]),'13CH'),
              (f[mask],abs((design[:,2:4]@coef[2:4])[mask]),'13CH3')],
              'Frequency (Hz)','Component magnitude (not additive)',f'Isotopomer check: {lo:g}-{hi:g} Hz')
+    transition_records={}
+    from matplotlib.figure import Figure
+    for kind in active:
+        tf,tw=transitions(p,kind)
+        transition_records[kind]={'frequency_hz':tf.tolist(),'relative_weights':(tw/tw.sum()).tolist()}
+        for i,(lo,hi) in enumerate(ranges):
+            mask=(tf>=lo)&(tf<=hi); fig=Figure(figsize=(10,4.6),layout='constrained'); ax=fig.add_subplot(111)
+            ax.vlines(tf[mask],0,tw[mask]/tw.sum(),linewidth=.8)
+            ax.set(xlim=(lo,hi),xlabel='Frequency (Hz)',ylabel='Normalized thermal transition weight',
+                   title=f'{kind}: unbroadened transitions (not experimental intensities)')
+            fig.savefig(directory/f'{kind}_sticks_range_{i}.png',dpi=150)
+    storage.write_json(directory/'transitions.json',transition_records)
     np.savez_compressed(directory/'fit_arrays.npz',frequency_hz=f,experiment=y,fitted=fitted,residual=y-fitted,
                         methine=design[:,:2]@coef[:2],methyl=design[:,2:4]@coef[2:4],membership=membership)
     for name in ('methine','methyl'): storage.write_json(directory/f'{name}_model.json',model_for(p,name))
@@ -290,6 +310,12 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
             'preprocessing':params,'settings':s,'ranges_hz':ranges,'free_parameters':free,
             'parameters_hz':p,'fixed_parameters_hz':{k:p[k] for k in NAMES if k not in free},
             'decay_rates_per_s':rates_for(best.x),'active_isotopomers':active,
+            'linewidth_diagnostics':{k:{'rate_per_s':r,'t2_effective_s':1/r,
+                 'isolated_infinite_time_absorption_fwhm_hz':r/np.pi,
+                 'isolated_infinite_time_magnitude_fwhm_hz':np.sqrt(3)*r/np.pi,
+                 'near_rate_bound':bool(k not in fixed_rates and min(np.log(r/rate_bounds[k][0]),np.log(rate_bounds[k][1]/r))<.01*np.log(rate_bounds[k][1]/rate_bounds[k][0]))} for k,r in rates_for(best.x).items()},
+            'frequency_bin_hz':fs/(params['stop_sample']-params['start_sample']),
+            'fit_bin_spacing_hz':s['bin_stride']*fs/(params['stop_sample']-params['start_sample']),
             'linear_coefficients':coef.tolist(),'weighted_mean_square_residual':score,
             'relative_complex_residual':float(np.linalg.norm(y-fitted)/np.linalg.norm(y)),
             'relative_magnitude_residual':float(np.linalg.norm(abs(y)-abs(fitted))/np.linalg.norm(abs(y))),
@@ -312,4 +338,6 @@ def fit_isopropylamine_j(comparison_run_id, variant_index, ranges, settings=None
     if not best.success: report['warnings'].append('Best local optimization exhausted its budget or did not converge.')
     if s['objective']=='magnitude': report['warnings'].append('Magnitude fitting discards observed phase and has noise bias; the complex residual is diagnostic, not its optimized objective.')
     if len(near)>1: report['warnings'].append('Multiple candidate starts are within 10% of the best objective; inspect their parameter differences before selecting a J set.')
+    if any(v['near_rate_bound'] for v in report['linewidth_diagnostics'].values()): report['warnings'].append('A decay rate is near its bound. A narrow imposed width is a hypothesis, not evidence of resolved structure.')
+    report['warnings'].append('Reported isolated infinite-time linewidths are diagnostics; finite duration, overlap, phase and processing change observed widths.')
     return report

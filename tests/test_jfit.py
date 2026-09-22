@@ -56,14 +56,17 @@ class JFitTests(unittest.TestCase):
             for key in args['settings']['free_parameters']: self.assertAlmostEqual(r['parameters_hz'][key],truth[key],places=3)
             self.assertLess(r['relative_complex_residual'],1e-4)
             args['settings']['objective']='magnitude'
+            args['settings']['initial_rates']={'methine':3.,'methyl':3.}
+            args['settings']['rate_bounds_by_isotopomer']={'methine':[2.,4.],'methyl':[2.,4.]}
             magnitude=execute('fit_isopropylamine_j',args)
             self.assertLess(magnitude['relative_magnitude_residual'],.002)
             for key in args['settings']['free_parameters']:
                 self.assertAlmostEqual(magnitude['parameters_hz'][key],truth[key],places=2)
             self.assertEqual(len(magnitude['candidates']),1)
+            self.assertAlmostEqual(magnitude['linewidth_diagnostics']['methyl']['isolated_infinite_time_magnitude_fwhm_hz'],np.sqrt(3)*magnitude['decay_rates_per_s']['methyl']/np.pi)
             # Methyl-only anchor must not contain a hidden methine component.
             anchor_args=dict(args,settings=dict(args['settings'],objective='complex',
-                 isotopomers=['methyl'],free_parameters=['J_CH_methyl'],fixed_rates={'methyl':3.},max_nfev=8),ranges=[[230,270]])
+                 isotopomers=['methyl'],free_parameters=['J_CH_methyl'],fixed_rates={'methyl':3.},initial_rates={'methyl':3.},rate_bounds_by_isotopomer={'methyl':[2.,4.]},max_nfev=8),ranges=[[230,270]])
             anchor=execute('fit_isopropylamine_j',anchor_args)
             self.assertEqual(anchor['decay_rates_per_s'],{'methyl':3.})
             with np.load(storage.artifact(anchor['run_id'],'fit_arrays.npz')) as a:

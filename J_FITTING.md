@@ -47,6 +47,35 @@ parameters must affect an active isotopomer. Every ordinary fit now saves separa
 component overlays and per-band magnitude residuals, including for complex fits.
 Candidate records retain gains/rates for reproducible extrapolation.
 
+## Fine fitting and linewidth checks
+
+Use `bin_stride=1` to fit every acquired FFT bin; this changes which observations
+are used, not the experiment's physical resolution. A smaller `diff_step` (for
+example 1e-5) refines numerical derivatives. Increase `max_nfev` as needed, and
+record local J bounds: a local refinement cannot exclude remote solutions.
+
+`initial_rates` and `rate_bounds_by_isotopomer` control each isotope's exponential
+damping independently, in inverse seconds. Staged fitting carries both J and
+rates into the joint stage rather than resetting rates. Compare unrestricted
+linewidth refinement with explicitly labeled narrow-width hypotheses; do not
+choose a model just because the rendered peaks look sharper. Rate-bound hits
+are reported. Fixed rates may be deliberate hypotheses and are reported separately.
+
+Every run exports unbroadened thermal transition sticks plus actual FFT-bin
+spacing and diagnostic widths. For one isolated infinite-duration exponential
+mode with damping R, absorption FWHM is R/pi while magnitude FWHM is
+sqrt(3)*R/pi. These are not measured widths of an overlapping, phase-dependent,
+filtered finite-record spectrum. Peak half-prominence widths likewise must not
+be labeled T2 estimates or physical linewidth measurements.
+
+Broad common isotope damping can conceal wrong J splittings or invalid relative
+transition strengths. If narrower hypotheses worsen residuals or miss main
+peaks, investigate the forward model; do not force narrower widths and present
+the result as a validated experimental J matrix.
+`examples/j_fit_fine.json` demonstrates a narrow-width **hypothesis**. Replace
+the local input ID and supply initial J values/bounds from the candidate branch
+being investigated. Also run an unrestricted-width control on the same bins.
+
 ## Scope and parameter mapping
 
 This is a pure, natural-abundance isopropylamine **carbon-bound proton skeleton**

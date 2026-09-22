@@ -106,7 +106,10 @@ def fit_isopropylamine_j(comparison_run_id: str, variant_index: int,
     rate_bounds [lo,hi] in 1/s, initial_rate, objective complex/magnitude (default
     complex). Magnitude compares abs of coherently summed complex predictions,
     fitting nuisance gains/phases internally. Also accepts isotopomers (nonempty
-    subset of methine/methyl) and fixed_rates (isotopomer->1/s). Returns job_id. Saves candidates,
+    subset of methine/methyl), fixed_rates and initial_rates (isotopomer->1/s),
+    rate_bounds_by_isotopomer (isotopomer->[lo,hi] in 1/s), diff_step (relative
+    nonlinear finite-difference step). bin_stride=1 fits all native FFT bins.
+    Returns job_id. Saves candidates,
     J matrices, sensitivity, overlays and residuals. Does NOT uniquely identify
     the full molecule's J values, perform repeat validation or infer confidence intervals.
     """
@@ -123,7 +126,9 @@ def fit_isopropylamine_staged(comparison_run_id: str, variant_index: int,
     Default low/high bands: [110,150]/[230,275] Hz. Settings: initial, bounds,
     objective complex/magnitude, branches (1..4), anchor_starts, anchor_screening,
     methine_starts, methine_screening, max_nfev, bin_stride, seed,
-    high_degradation_tolerance (default .15). All child run IDs are preserved.
+    high_degradation_tolerance (default .15), initial_rates and
+    rate_bounds_by_isotopomer (both isotope keys required), diff_step.
+    Joint refinement warm-starts decay rates as well as J. All child run IDs are preserved.
     High-band assignment is an assumption; no candidate is scientifically validated
     automatically. Component magnitudes are never subtracted to form a residual.
     """

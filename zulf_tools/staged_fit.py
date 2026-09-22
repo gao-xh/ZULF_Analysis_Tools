@@ -32,7 +32,9 @@ def fit_isopropylamine_staged(comparison_run_id,variant_index,low_range=None,hig
     options=dict(initial=jfit.DEFAULT.copy(),bounds=jfit.BOUNDS.copy(),objective='magnitude',
                  branches=2,anchor_starts=5,anchor_screening=64,methine_starts=3,
                  methine_screening=24,max_nfev=80,bin_stride=3,seed=20260922,
-                 high_degradation_tolerance=.15)
+                 high_degradation_tolerance=.15,
+                 initial_rates={'methine':4.,'methyl':4.},
+                 rate_bounds_by_isotopomer={'methine':[.3,40.],'methyl':[.3,40.]},diff_step=1e-4)
     settings=settings or {}
     if set(settings)-set(options): raise ValueError('Unknown staged-fit settings.')
     options.update(settings)
@@ -49,9 +51,13 @@ def fit_isopropylamine_staged(comparison_run_id,variant_index,low_range=None,hig
         children.append({'stage':stage,'branch':branch,'run_id':child['run_id']})
         storage.write_json(directory/'children.json',children)
         return child
-    common={k:options[k] for k in ['initial','bounds','objective','max_nfev','bin_stride','seed']}
+    for key in ('initial_rates','rate_bounds_by_isotopomer'):
+        if not isinstance(options[key],dict) or set(options[key])!={'methine','methyl'}: raise ValueError(key+' must specify methine and methyl.')
+    common={k:options[k] for k in ['initial','bounds','objective','max_nfev','bin_stride','seed','diff_step']}
     methyl_free=['J_CH_methyl','J_HH_vicinal','J_Cmethyl_Hmethine','J_Cmethyl_Hother_methyl']
     anchor=run('methyl_high_band',dict(common,isotopomers=['methyl'],free_parameters=methyl_free,
+               initial_rates={'methyl':options['initial_rates']['methyl']},
+               rate_bounds_by_isotopomer={'methyl':options['rate_bounds_by_isotopomer']['methyl']},
                starts=options['anchor_starts'],screening_samples=options['anchor_screening']),[high_range])
     progress(1,1+2*options['branches'])
     selected=[]
@@ -71,9 +77,12 @@ def fit_isopropylamine_staged(comparison_run_id,variant_index,low_range=None,hig
         methine=run('methine_with_methyl_J_and_rate_fixed',dict(common,initial=starting,
             isotopomers=['methine','methyl'],free_parameters=['J_CH_methine','J_Cmethine_Hmethyl'],
             fixed_rates={'methyl':candidate['decay_rates_per_s']['methyl']},
+            initial_rates={'methine':options['initial_rates']['methine'],'methyl':candidate['decay_rates_per_s']['methyl']},
+            rate_bounds_by_isotopomer=options['rate_bounds_by_isotopomer'],
             starts=options['methine_starts'],screening_samples=options['methine_screening']),[low_range,high_range],branch)
         progress(2+2*branch,1+2*len(selected))
         joint=run('joint_refinement',dict(common,initial=methine['parameters_hz'],
+            initial_rates=methine['decay_rates_per_s'],rate_bounds_by_isotopomer=options['rate_bounds_by_isotopomer'],
             isotopomers=['methine','methyl'],free_parameters=jfit.NAMES.copy(),
             starts=1,screening_samples=0),[low_range,high_range],branch)
         high_before=candidate['band_magnitude_relative_residuals'][0]

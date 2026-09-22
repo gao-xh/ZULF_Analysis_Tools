@@ -29,3 +29,7 @@ Do not build a new desktop GUI as the primary workflow.
   Always inspect separate component plots and band residuals. A smaller aggregate
   residual or optimizer convergence does not validate isotope assignments or J.
   Do not subtract magnitude spectra or treat assumed band assignments as facts.
+- When fitted peaks appear broad, inspect damping rates and unbroadened transition
+  sticks; compare native-bin unrestricted and explicitly constrained-width fits.
+  Do not equate sharper plots, imposed linewidths, or half-prominence widths with
+  physically established relaxation rates or more accurate J parameters.

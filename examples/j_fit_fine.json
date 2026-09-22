@@ -1,0 +1,21 @@
+{
+  "tool": "start_analysis",
+  "arguments": {
+    "operation": "fit_isopropylamine_j",
+    "parameters": {
+      "comparison_run_id": "REPLACE_WITH_LOCAL_COMPARISON_RUN_ID",
+      "variant_index": 0,
+      "ranges": [[110, 150], [230, 275]],
+      "settings": {
+        "objective": "magnitude",
+        "bin_stride": 1,
+        "diff_step": 0.00001,
+        "max_nfev": 160,
+        "starts": 3,
+        "screening_samples": 24,
+        "initial_rates": {"methine": 1, "methyl": 1},
+        "rate_bounds_by_isotopomer": {"methine": [0.3, 3], "methyl": [0.3, 3]}
+      }
+    }
+  }
+}
