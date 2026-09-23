@@ -1,0 +1,13 @@
+# Decay and phase continuation
+
+Fit complex observations with a matched forward operator: full-record SG baseline subtraction, original acquisition-relative time, crop and native FFT normalization. A shared cluster uses fixed J transition frequencies and relative weights, with one cosine/sine response pair and one decay. See project `J_CLUSTER_DECAY.md`, `zulf_tools/cluster_decay.py` and `zulf_tools/transition_decay.py`.
+
+The experimental individual-transition pilot is `.analysis/fit_individual_transition_decay.py`, not a registered production operation. It gives each in-band transition its own tau, keeps common response/phase and relative weights inside each old cluster, and fixes out-of-band decay times to the reference. Its objective is band-normalized complex squared error + 0.01 summed cluster spectral energy + beta times summed within-cluster mean squared deviations of log(tau) from the cluster mean. Primary beta was 0.1, sensitivity values 0.01 and 1. This is shrinkage, not evidence every transition is independently resolved. Adapt hard-coded sources before reuse; retain a shared-tau comparator and separate group-refit stability checks.
+
+Report unpenalized per-band error `norm(experiment - frozen_prediction) / norm(experiment)`. It includes real and imaginary parts, excludes penalties, and is not 1 minus accuracy. Group min–max after refitting measures variability; frozen validation prohibits refitting. Warm-start stability may not explore alternative minima. All-scan J creates conditional validation, not end-to-end held-out evidence.
+
+Display-only changes must preserve the original fitted observations and values. Derive bounded zero/first-order phase from discovery data, then apply the same phase to validation and each prediction/component. A pure common rotation preserves complex residual norms. For a request to make real spectra positive, minimize negative real-energy fraction within recorded phase bounds; retain negative values and report remaining fraction. Do not independently rotate each frequency bin into its magnitude.
+
+AsLS is optional baseline estimation, not phase correction. Label it separately; save its curve and parameters. A common baseline subtracted from data and model leaves pointwise residuals unchanged, while changing a relative-error denominator. It can absorb real spectral features; do not use appearance as evidence of better J or T2*.
+
+Figures: separate PNG/SVG per band, frequency horizontal, linear seconds for T2*, spectrum left axis and T2* right axis when requested. Mark boundaries and hypothetical N15. Horizontal connections between transitions indicate a shared cluster time, not frequency error. Distinguish group range, regularization sensitivity and any genuine confidence intervals.

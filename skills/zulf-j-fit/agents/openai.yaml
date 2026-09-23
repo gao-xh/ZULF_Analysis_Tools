@@ -1,0 +1,6 @@
+interface:
+  display_name: "ZULF J Fit"
+  short_description: "Simulation-guided J fitting and decay comparison"
+  default_prompt: "Use $zulf-j-fit to compare my ZULF data with spin simulations and refine candidate J matrices."
+policy:
+  allow_implicit_invocation: true
